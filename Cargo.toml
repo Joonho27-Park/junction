@@ -34,12 +34,12 @@ confy = "0.4"
 toml = "0.5"
 
 backend_glfw = { path = "lib/backend_glfw" }
-rolling = { path = "lib/trainspotting/rolling" }
-planner = { path = "lib/trainspotting/planner" }
+rolling = { path = "lib/trainspotting/rolling" } # need to copy from lutberget github
+planner = { path = "lib/trainspotting/planner" } # need to copy from lutberget github
 route_finder = { path = "lib/route_finder" }
-lsqr = { path = "lib/lsqr-rs" }
+lsqr = { path = "lib/lsqr-rs" }                  # need to copy from lutberget github
 
-railplotlib = { path = "lib/railplot/lib/railplotlib" }
+railplotlib = { path = "lib/railplot/lib/railplotlib" } # need to copy from lutberget github
 railmlio = { path = "lib/railmlio" }
 numerical_optimization = { path = "lib/numerical_optimization" }
 
