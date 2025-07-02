@@ -463,7 +463,7 @@ fn object_select(inf_view :&mut InfView) {
                             functions: vec![Function::Detector],
                         }
                         ));
-            } 
+            }
 
             igEndPopup();
         }
