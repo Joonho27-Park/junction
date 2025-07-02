@@ -329,15 +329,48 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
     unsafe {
         if let Some(mut obj) = obj {
             let moved = obj.move_to(analysis.model(),inf_view.view.screen_to_world_ptc(draw.mouse));
-            obj.draw(draw.pos,&inf_view.view,draw.draw_list,
+            /*
+             obj.draw(draw.pos,&inf_view.view,draw.draw_list,
                      config.color_u32(RailUIColorName::CanvasSymbol),&[],&config);
-
+            
+             */
+            
+            // 미리보기 시에는 잘 보이는 색상 사용 (감지기는 배치 후에 배경색과 같아짐)
+            let preview_color = config.color_u32(RailUIColorName::CanvasSymbol);
+            
+            obj.draw(draw.pos,&inf_view.view,draw.draw_list,
+                    preview_color,&[],&config);
             if let Some(err) = moved {
                 let p = draw.pos + inf_view.view.world_ptc_to_screen(obj.loc);
-                let window = ImVec2 { x: 4.0, y: 4.0 };
+                //기존 Rectangle
+                /*let window = ImVec2 { x: 12.0, y: 12.0 };
                 ImDrawList_AddRect(draw.draw_list, p - window, p + window,
                                    config.color_u32(RailUIColorName::CanvasSymbolLocError),
                                    0.0,0,4.0);
+                */
+                //Circle로 바꿈
+                /*let radius = 15.0;  // 원의 반지름
+                ImDrawList_AddCircle(draw.draw_list, p, radius,
+                   config.color_u32(RailUIColorName::CanvasSymbolLocError),
+                   12, 4.0);
+                */
+
+                //X표시 적용
+                let size = 10.0;
+                // X표시 그리기: 두 개의 대각선
+                // 왼쪽 위에서 오른쪽 아래로
+                ImDrawList_AddLine(draw.draw_list, 
+                   p + ImVec2 { x: -size, y: -size },  // 왼쪽 위
+                   p + ImVec2 { x: size, y: size },    // 오른쪽 아래
+                   config.color_u32(RailUIColorName::CanvasSymbolLocError),
+                   4.0);
+
+                // 오른쪽 위에서 왼쪽 아래로
+                ImDrawList_AddLine(draw.draw_list, 
+                   p + ImVec2 { x: size, y: -size },   // 오른쪽 위
+                   p + ImVec2 { x: -size, y: size },   // 왼쪽 아래
+                   config.color_u32(RailUIColorName::CanvasSymbolLocError),
+                   4.0);
             } else  {
                 if igIsMouseReleased(0) {
                     analysis.edit_model(|m| {

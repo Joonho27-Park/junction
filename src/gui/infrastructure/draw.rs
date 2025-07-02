@@ -173,13 +173,23 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
 
         let color_obj = config.color_u32(RailUIColorName::CanvasSymbol);
         let color_obj_selected = config.color_u32(RailUIColorName::CanvasSymbolSelected);
+        //placed된 후의 색깔 지정. -> canvas색깔과 같음.
+        let color_detector = config.color_u32(RailUIColorName::CanvasDetector);
 
         for (pta,obj) in &m.objects {
             let selected = inf_view.selection.contains(&Ref::Object(*pta));
             let preview = sel_window.map(|(a,b)| 
                      util::point_in_rect(inf_view.view.
                              world_ptc_to_screen(unround_coord(*pta)),a,b)).unwrap_or(false);
-            let col = if selected || preview { color_obj_selected } else { color_obj };
+            
+             // 감지기는 배경색과 같은 색상, 신호기는 기존 색상 사용
+            let base_color = if obj.functions.iter().any(|f| matches!(f, Function::Detector)) {
+                color_detector
+            } else {
+                color_obj
+            };
+
+            let col = if selected || preview { color_obj_selected } else { base_color };
             let empty = vec![];
             let state = object_states.get(pta).unwrap_or(&empty);
             obj.draw(draw.pos, &inf_view.view, draw.draw_list, col, state, config);
