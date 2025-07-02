@@ -20,7 +20,7 @@ use crate::document::objects::*;
 use crate::gui::widgets;
 use crate::gui::widgets::Draw;
 use crate::config::RailUIColorName;
-
+use crate::document::model::generate_unique_dispatch_name;
 
 #[derive(Copy,Clone,Debug)]
 pub enum Highlight {
@@ -603,7 +603,7 @@ fn start_route(analysis :&mut Analysis, dispatch_view :&mut Option<DispatchView>
     let (dispatch_idx,time) = match &dispatch_view {
         Some(DispatchView::Manual(m)) => (m.dispatch_idx, m.time),
         None | Some(DispatchView::Auto(_)) => {
-            let name = format!("Dispatch {}", model.dispatches.next_id()+1);
+            let name = generate_unique_dispatch_name(&model.dispatches);
             let dispatch_idx = model.dispatches.insert(Dispatch::new_empty(name));
             let time = 0.0;
 
