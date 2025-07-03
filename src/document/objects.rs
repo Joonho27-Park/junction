@@ -22,7 +22,7 @@ pub struct Object {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[derive(Serialize,Deserialize)]
 //이곳에서 새로운 signal/detector추가
-pub enum Function { MainSignal { has_distant :bool }, Detector , ShiftingSignal { has_distant :bool} }
+pub enum Function { MainSignal { has_distant :bool }, Detector , ShiftingSignal { has_distant :bool}, Switch }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
@@ -50,6 +50,8 @@ impl Object {
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = pt_on_line + offset;
             }else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
+                self.loc = pt_on_line;
+            }else if self.functions.iter().find(|c| matches!(c, Function::Switch)).is_some() {
                 self.loc = pt_on_line;
             }
 
@@ -269,8 +271,19 @@ impl Object {
                     // 외곽선만 그림(채우지 않음)
                     ImDrawList_PathStroke(draw_list, c, true, 2.0);
                 },
-
+                Function::Switch => {
+                    // Switch를 위한 간단한 X 모양 그리기
+                    let switch_size = scale * 1.5;
+                    ImDrawList_AddLine(draw_list, 
+                        p + ImVec2 { x: -switch_size, y: -switch_size },
+                        p + ImVec2 { x: switch_size, y: switch_size },
+                        c, 3.0);
+                    ImDrawList_AddLine(draw_list, 
+                        p + ImVec2 { x: switch_size, y: -switch_size },
+                        p + ImVec2 { x: -switch_size, y: switch_size },
+                        c, 3.0);
                 }
+            }
 
             }
         }

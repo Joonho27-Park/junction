@@ -168,6 +168,9 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                             track_objs.push((pos,*id, Function::MainSignal { has_distant: *has_distant },
                                              Some(get_dir_from_side(&pt, *loc))));
                         }
+                        Function::Switch => {
+                            track_objs.push((pos,*id,Function::Switch,None));
+                        }
                     }
                 }
             } else {

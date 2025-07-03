@@ -117,6 +117,13 @@ impl DGraphBuilder {
                             static_signals.insert(id, obj);
                             object_ids.insert(obj, id);
                         },
+                        Function::Switch => { 
+                            // Switch는 현재 Detector와 동일하게 처리
+                            let (a,b) = cursor.nodes(&dg.dgraph);
+                            detector_nodes.insert((a,b));
+                            detector_ids.insert(a,id);
+                            detector_ids.insert(b,id);
+                        },
                     }
                     last_pos = pos;
                 }

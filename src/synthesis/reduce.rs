@@ -123,6 +123,16 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                         design.push((track_idx, *pos, Function::Detector, None));
                     }
                 },
+                Function::Switch => {
+                    // Switch는 현재 Detector와 동일하게 처리
+                    if det_id.get(id).map(|d| detectors.contains(&planner::input::SignalId::Detector(*d)) ||
+                                              detectors.contains(&planner::input::SignalId::Detector(*d + 1)))
+                        .unwrap_or(false) {
+
+                        design.push((track_idx, *pos, *func, *dir));
+                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
+                    }
+                },
             }
         }
     }

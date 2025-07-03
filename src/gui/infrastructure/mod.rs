@@ -472,42 +472,28 @@ fn toolbar_button(name :*const i8, selected :bool, enabled :bool) -> bool {
 fn object_select(inf_view :&mut InfView) {
     unsafe {
         if matches!(&inf_view.action, Action::SelectObjectType) {
-            inf_view.action = Action::InsertObject(None);
-            igOpenPopup(const_cstr!("osel").as_ptr());
-        }
-
-        if igBeginPopup(const_cstr!("osel").as_ptr(), 0 as _) {
-
-
-            if igSelectable(const_cstr!("(signal)신호기").as_ptr(), false, 0 as _, ImVec2::zero()) {
-                inf_view.action = Action::InsertObject(Some( 
+            let object_types = [
+                (const_cstr!("Home Signal"), Function::MainSignal { has_distant: false }),
+                (const_cstr!("Departure Signal"), Function::MainSignal { has_distant: true }),
+                (const_cstr!("Shunting Signal"), Function::ShiftingSignal { has_distant: false }),
+                (const_cstr!("Section Insulator"), Function::Detector),
+                (const_cstr!("Switch"), Function::Switch),
+            ];
+            for (i, (display_name, function)) in object_types.iter().enumerate() {
+                let selected = false; // 필요시 선택 상태 표시
+                if toolbar_button(display_name.as_ptr(), selected, true) {
+                    inf_view.action = Action::InsertObject(Some(
                         Object {
                             loc: glm::vec2(0.0, 0.0),
                             tangent: glm::vec2(1,0),
-                            functions: vec![Function::MainSignal { has_distant: false}],
+                            functions: vec![*function],
                         }
-                        ));
-            } 
-            if igSelectable(const_cstr!("(detector)궤도분리").as_ptr(), false, 0 as _, ImVec2::zero()) {
-                inf_view.action = Action::InsertObject(Some( 
-                        Object {
-                            loc: glm::vec2(0.0, 0.0),
-                            tangent: glm::vec2(1,0),
-                            functions: vec![Function::Detector],
-                        }
-                        ));
-            } 
-            if igSelectable(const_cstr!("Shifting Signal").as_ptr(), false, 0 as _, ImVec2::zero()) {
-                inf_view.action = Action::InsertObject(Some( 
-                        Object {
-                            loc: glm::vec2(0.0, 0.0),
-                            tangent: glm::vec2(1,0),
-                            functions: vec![Function::ShiftingSignal { has_distant: false}],
-                        }
-                        ));
-            } 
-
-            igEndPopup();
+                    ));
+                }
+                if i != object_types.len() - 1 {
+                    igSameLine(0.0, -1.0); // 버튼을 한 줄에 나란히
+                }
+            }
         }
     }
 }
