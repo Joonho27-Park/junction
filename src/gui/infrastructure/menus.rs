@@ -94,6 +94,10 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
                     }
                 }
             }
+            Function::Switch => {
+                widgets::show_text("Switch");
+                // Switch는 has_distant 필드가 없으므로 간단히 표시만 함
+            }
         }
     }
     if let Some(d) = set_distant {
