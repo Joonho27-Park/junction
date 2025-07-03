@@ -194,46 +194,6 @@ impl App {
                             *track_id, *pos, NodeType::Switch(Dir::Down, Side::Left), 50.0))));
                         }
                         None }),
-                    ('w', format!("Home Signal"), |app| {
-                        if let Selection::Pos(pos, _ , track_id) = &app.model.view.selection {
-                            app.integrate(AppAction::Model(ModelAction::Inf(
-                                    InfrastructureEdit::InsertObject(
-                                        *track_id, *pos, ObjectType::Signal(Dir::Up)))));
-                        }
-                        None
-                    }),
-                    ('c', format!("Departure Signal"), |app| {
-                        if let Selection::Pos(pos, _ , track_id) = &app.model.view.selection {
-                            app.integrate(AppAction::Model(ModelAction::Inf(
-                                    InfrastructureEdit::InsertObject(
-                                        *track_id, *pos, ObjectType::Signal(Dir::Down)))));
-                        }
-                        None
-                    }),
-                    ('d', format!("Shunting Signal"), |app| {
-                        if let Selection::Pos(pos, _ , track_id) = &app.model.view.selection {
-                            app.integrate(AppAction::Model(ModelAction::Inf(
-                                    InfrastructureEdit::InsertObject(
-                                        *track_id, *pos, ObjectType::ShuntingSignal))));
-                        }
-                        None
-                    }),
-                    ('r', format!("Section Insulator"), |app| {
-                        if let Selection::Pos(pos, _ , track_id) = &app.model.view.selection {
-                            app.integrate(AppAction::Model(ModelAction::Inf(
-                                    InfrastructureEdit::InsertObject(
-                                        *track_id, *pos, ObjectType::Detector))));
-                        }
-                        None
-                    }),
-                    ('t', format!("Switch"), |app| {
-                        if let Selection::Pos(pos, _ , track_id) = &app.model.view.selection {
-                            app.integrate(AppAction::Model(ModelAction::Inf(
-                                    InfrastructureEdit::InsertObject(
-                                        *track_id, *pos, ObjectType::Switch))));
-                        }
-                        None
-                    }),
                 ]}))
             }
             _ => None,

@@ -68,6 +68,52 @@ pub fn keys(app :&mut App) {
             if igIsKeyPressed('S' as _, false) {
                 app.document.inf_view.action = Action::SelectObjectType;
             }
+
+            if igIsKeyPressed('H' as _, false) {
+                app.document.inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: false }],
+                    }
+                ));
+            }
+            if igIsKeyPressed('E' as _, false) {
+                app.document.inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: true }],
+                    }
+                ));
+            }
+            if igIsKeyPressed('U' as _, false) {
+                app.document.inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::ShiftingSignal { has_distant: false }],
+                    }
+                ));
+            }
+            if igIsKeyPressed('I' as _, false) {
+                app.document.inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Detector],
+                    }
+                ));
+            }
+            if igIsKeyPressed('W' as _, false) {
+                app.document.inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Switch],
+                    }
+                ));
+            }
         }
     }
 }
