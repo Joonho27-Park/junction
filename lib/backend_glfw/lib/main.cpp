@@ -8,6 +8,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
+#include <cstdio>
 
 // About OpenGL function loaders: modern OpenGL doesn't have a standard header file and requires individual function pointers to be loaded manually.
 // Helper libraries are often used for this purpose! Here we are supporting a few common ones: gl3w, glew, glad.
@@ -229,6 +230,15 @@ static const ImWchar korean_ranges[] = {
     0x3130, 0x318F, // 한글 호환 자모
     0,              // 끝 표시
 };
+
+// [폰트 파일 존재 여부 체크]
+/*
+if (FILE *file = fopen("lib/glrail/PretendardVariable.ttf", "r")) {
+    fclose(file);
+} else {
+    printf("file not exist\n");
+}
+*/
 
 // [1] 한글+영문 폰트(기본) - MergeMode 없이 등록 (한글/영문/숫자 모두 잘 나오게)
 ImFont* base_font = io.Fonts->AddFontFromFileTTF(

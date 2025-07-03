@@ -58,6 +58,7 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
             Some((*a, *a + igGetMouseDragDelta_nonUDT2(0,-1.0).into()))
         } else { None };
 
+        // 이 부분이 정수 격자점에 대해 작은 원을 그리는
         let (lo,hi) = inf_view.view.points_in_view(draw.size);
         let color_grid = config.color_u32(RailUIColorName::CanvasGridPoint);
         for x in lo.x..=hi.x {
