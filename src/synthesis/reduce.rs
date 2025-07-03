@@ -108,6 +108,21 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                         design.push((track_idx, *pos, Function::Detector, None));
                     }
                 },
+                Function::ShiftingSignal { .. } => {
+                    if sig_id.get(id).map(|o| signals.contains(&planner::input::SignalId::Signal(*o)))
+                        .unwrap_or(false) {
+
+                            
+                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
+                        design.push((track_idx, *pos, *func, *dir));
+
+                    } else if sig_id.get(id).map(|o| detectors.contains(&planner::input::SignalId::Signal(*o)))
+                        .unwrap_or(false) {
+
+                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
+                        design.push((track_idx, *pos, Function::Detector, None));
+                    }
+                },
             }
         }
     }

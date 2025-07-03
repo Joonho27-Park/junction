@@ -77,6 +77,8 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                 .map(|(a,b)| util::point_in_rect(p1,a,b) || util::point_in_rect(p2,a,b))
                 .unwrap_or(false) ;
             let col = if selected || preview { color_line_selected } else { color_line };
+            // [기본 track(선로) 두께]
+            // 실제 선로(트랙)를 화면에 그릴 때 사용하는 두께. 전체 인프라 뷰에서 가장 기본이 되는 선로의 두께를 결정한다.
             ImDrawList_AddLine(draw.draw_list, draw.pos + p1, draw.pos + p2, col, 2.5);
         }
 
@@ -96,6 +98,9 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                 match t {
                     NDType::OpenEnd => {
                         for angle in &[-45.0,45.0] {
+                            // [OpenEnd 노드의 선 두께]
+                            // 선로의 끝(OpenEnd)에서 양쪽으로 뻗어나가는 짧은 선(끝 표시)의 두께. 선로의 끝을 시각적으로 강조할 때 사용.
+                            // 실제로는 화살표 모습으로 나타남!!
                             ImDrawList_AddLine(draw.draw_list,
                                draw.pos + inf_view.view.world_ptc_to_screen(pt),
                                draw.pos + inf_view.view.world_ptc_to_screen(pt) 
@@ -115,10 +120,9 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                     },
                     NDType::Err =>{
                         let p = draw.pos + inf_view.view.world_ptc_to_screen(pt);
-                        let window = ImVec2 { x: 4.0, y: 4.0 };
-                        ImDrawList_AddRect(draw.draw_list, p - window, p + window,
-                                           config.color_u32(RailUIColorName::CanvasNodeError),
-                                           0.0,0,4.0);
+                        let radius = 12.0;
+                        // Draw error node as an empty (outline) circle
+                        ImDrawList_AddCircle(draw.draw_list, p, radius, config.color_u32(RailUIColorName::CanvasNodeError), 16, 3.0);
                     },
                     NDType::BufferStop => {
                         let tangent = util::to_imvec(normalize(&tangent));
@@ -130,6 +134,8 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                                                  node - 8.0*normal,
                                                  node - 8.0*normal + 2.0*4.0 * tangent];
 
+                        // [BufferStop의 선 두께]
+                        // BufferStop(종단 정지장치)에서 그려지는 다각형(Polyline)의 선 두께. 종단부의 시각적 강조에 사용.
                         ImDrawList_AddPolyline(draw.draw_list,pline.as_ptr(), pline.len() as i32, col, false, 2.5);
 
                     },
@@ -145,6 +151,8 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                             let pline :&[ImVec2] = &[base - 8.0*tangenti,
                                                      base,
                                                      base + 8.0*util::to_imvec(rotate_vec2(&tangent, radians(&vec1(45.0)).x))];
+                            // [Crossing의 선 두께]
+                            // Crossing(건널목, 십자선 등)에서 그려지는 다각형(Polyline)의 선 두께. 교차점의 선로를 강조할 때 사용.
                             ImDrawList_AddPolyline(draw.draw_list,pline.as_ptr(), pline.len() as i32, col, false, 2.5);
                         }
 

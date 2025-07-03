@@ -497,6 +497,15 @@ fn object_select(inf_view :&mut InfView) {
                         }
                         ));
             } 
+            if igSelectable(const_cstr!("Shifting Signal").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some( 
+                        Object {
+                            loc: glm::vec2(0.0, 0.0),
+                            tangent: glm::vec2(1,0),
+                            functions: vec![Function::ShiftingSignal { has_distant: false}],
+                        }
+                        ));
+            } 
 
             igEndPopup();
         }

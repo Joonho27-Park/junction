@@ -108,6 +108,15 @@ impl DGraphBuilder {
                             static_signals.insert(id, obj);
                             object_ids.insert(obj, id);
                         },
+                        Function::ShiftingSignal { has_distant }=> { 
+                            let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
+                            signal_cursors.insert(id,c); 
+
+                            let (_cursor, obj) = dg.insert_object(c, 
+                                  rolling_inf::StaticObject::Signal { has_distant: has_distant });
+                            static_signals.insert(id, obj);
+                            object_ids.insert(obj, id);
+                        },
                     }
                     last_pos = pos;
                 }

@@ -97,6 +97,9 @@ pub fn create_model(bg :&SynthesisBackground, design :&Vec<Object>) -> (Topology
         if matches!(func, Function::MainSignal { .. }) {
             topo.trackobjects[*track_idx].push((*pos, glm::vec2(obj_idx as i32, 1), Function::Detector, None));
         }
+        if matches!(func, Function::ShiftingSignal { .. }) {
+            topo.trackobjects[*track_idx].push((*pos, glm::vec2(obj_idx as i32, 1), Function::Detector, None));
+        }
     }
 
     let dgraph = dgraph::DGraphBuilder::convert(&topo).unwrap();

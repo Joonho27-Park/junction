@@ -61,6 +61,16 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
             //println!("ADding object {:?}", obj);
             model.objects.insert(round_coord(obj.loc), obj);
         }
+        if matches!(func, Function::ShiftingSignal { .. } ) {
+            let mut obj = objects::Object {
+                loc: pt, 
+                tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
+                functions: vec![Function::Detector],
+            };
+            obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
+            //println!("ADding object {:?}", obj);
+            model.objects.insert(round_coord(obj.loc), obj);
+        }
     }
 
     analysis.set_model(model, None);

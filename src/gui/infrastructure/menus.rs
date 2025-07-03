@@ -84,6 +84,16 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
                     }
                 }
             }
+            Function::ShiftingSignal { has_distant } => {
+                widgets::show_text("Main signal");
+                let mut has_distant = *has_distant;
+                unsafe {
+                    igCheckbox(const_cstr!("Distant signal").as_ptr(), &mut has_distant);
+                    if igIsItemEdited() {
+                        set_distant = Some(has_distant);
+                    }
+                }
+            }
         }
     }
     if let Some(d) = set_distant {

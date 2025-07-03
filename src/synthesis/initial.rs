@@ -28,6 +28,7 @@ pub fn initial_design(topo :&Topology) -> Design {
                             // signals now implies a co-located detector
                             //objects.push((c.tr,c.pos,Function::Detector,None));
                             objects.push((c.tr,c.pos,Function::MainSignal { has_distant: true },Some(c.dir.other())));
+                            objects.push((c.tr,c.pos,Function::ShiftingSignal { has_distant: true },Some(c.dir.other())));
                         }
                     }
                 },
