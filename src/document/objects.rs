@@ -80,7 +80,7 @@ impl Object {
             for f in self.functions.iter() {
                 match f {
                     Function::Detector => {
-                        ImDrawList_AddLine(draw_list, p - normal, p + normal, c, 2.0);
+                        ImDrawList_AddLine(draw_list, p - normal, p + normal, c, 5.0);
                         /*
                         배경 색갈과 같은 감지기. thickness는 4.0으로 하여 좀 더 잘 보이도록 설정
                         let detector_color = config.color_u32(RailUIColorName::CanvasDetector);
