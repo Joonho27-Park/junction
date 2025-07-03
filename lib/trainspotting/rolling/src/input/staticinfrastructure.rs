@@ -3,6 +3,7 @@ use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::fmt::Debug;
+use serde::Serialize;
 
 pub type NameMap<Ref> = HashMap<Ref, usize>;
 
@@ -22,21 +23,21 @@ pub type Dist = f64;
 pub type NodeId = usize;
 pub type ObjectId = usize;
 
-#[derive(Debug)]
+#[derive(Debug,Serialize)]
 pub struct StaticInfrastructure {
     pub nodes: Vec<Node>,
     pub objects: Vec<StaticObject>,
 }
 
 
-#[derive(Debug)]
+#[derive(Debug,Serialize)]
 pub struct Node {
     pub other_node: NodeId,
     pub edges: Edges,
     pub objects: SmallVec<[ObjectId; 2]>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Serialize)]
 pub enum Edges {
     Nothing,
     ModelBoundary,
@@ -44,7 +45,7 @@ pub enum Edges {
     Switchable(ObjectId),
 }
 
-#[derive(Debug)]
+#[derive(Debug,Serialize)]
 pub enum StaticObject {
     Sight { distance: f64, signal: ObjectId},
     Signal { has_distant: bool },
@@ -60,7 +61,7 @@ pub enum StaticObject {
     TVDSection,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,Serialize)]
 pub enum SwitchPosition {
     Left,
     Right,

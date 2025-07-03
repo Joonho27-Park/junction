@@ -3,6 +3,7 @@ extern crate smallvec;
 extern crate ordered_float;
 extern crate regex;
 extern crate failure;
+extern crate serde;
 #[macro_use] extern crate failure_derive;
 
 pub mod input;
