@@ -479,7 +479,7 @@ fn object_select(inf_view :&mut InfView) {
         if igBeginPopup(const_cstr!("osel").as_ptr(), 0 as _) {
 
 
-            if igSelectable(const_cstr!("Signal").as_ptr(), false, 0 as _, ImVec2::zero()) {
+            if igSelectable(const_cstr!("(signal)신호기").as_ptr(), false, 0 as _, ImVec2::zero()) {
                 inf_view.action = Action::InsertObject(Some( 
                         Object {
                             loc: glm::vec2(0.0, 0.0),
@@ -488,7 +488,7 @@ fn object_select(inf_view :&mut InfView) {
                         }
                         ));
             } 
-            if igSelectable(const_cstr!("Detector").as_ptr(), false, 0 as _, ImVec2::zero()) {
+            if igSelectable(const_cstr!("(detector)궤도분리").as_ptr(), false, 0 as _, ImVec2::zero()) {
                 inf_view.action = Action::InsertObject(Some( 
                         Object {
                             loc: glm::vec2(0.0, 0.0),

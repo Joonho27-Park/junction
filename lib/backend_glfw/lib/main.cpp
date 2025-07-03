@@ -220,24 +220,44 @@ void glfw_opengl3_Init(const char* win_name, const char* font_filename, float fo
     // - Read 'misc/fonts/README.txt' for more instructions and details.
     // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
     //io.Fonts->AddFontDefault();
-    if (font_filename != nullptr) {
-      io.Fonts->AddFontFromFileTTF(font_filename, font_size);
-    } else {
-      io.Fonts->AddFontDefault();
-    }
 
-    if (fontawesome_ttf != nullptr) {
-	    static const unsigned int ICON_MIN_FA = 0xf000;
-	    static const unsigned int ICON_MAX_FA = 0xf897;
-	    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+// 한글+영문 범위 지정 (어떤 글자를 폰트에 포함시킬지 정함)
+static const ImWchar korean_ranges[] = {
+    0x0020, 0x00FF, // 영어, 숫자, 기호 등
+    0xAC00, 0xD7AF, // 완성형 한글(가~힣)
+    0x1100, 0x11FF, // 한글 자모(ㄱ~ㅎ, ㅏ~ㅣ 등)
+    0x3130, 0x318F, // 한글 호환 자모
+    0,              // 끝 표시
+};
 
-	    ImFontConfig icons_config; 
-	    icons_config.MergeMode = true; 
-	    icons_config.PixelSnapH = true;
-	    icons_config.FontDataOwnedByAtlas = false;
-	    io.Fonts->AddFontFromMemoryTTF( (void*)fontawesome_ttf, fontawesome_len,
-			    font_size, &icons_config, icons_ranges );
-    }
+// [1] 한글+영문 폰트(기본) - MergeMode 없이 등록 (한글/영문/숫자 모두 잘 나오게)
+ImFont* base_font = io.Fonts->AddFontFromFileTTF(
+    "lib/glrail/PretendardVariable.ttf", // 폰트 파일 경로
+    18.0f,                                // 글자 크기(픽셀)
+    NULL,                                 // 폰트 설정(기본값)
+    korean_ranges                         // 포함할 글자 범위
+);
+
+// [2] FontAwesome 아이콘 폰트 - MergeMode = true로 기존 폰트에 합치기
+if (fontawesome_ttf != nullptr) {
+    static const unsigned int ICON_MIN_FA = 0xf000;
+    static const unsigned int ICON_MAX_FA = 0xf897;
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 }; // 아이콘 유니코드 범위
+
+    ImFontConfig icons_config; 
+    icons_config.MergeMode = true; // 기존 폰트(base_font)에 합쳐서 사용
+    icons_config.PixelSnapH = true; // 글자가 픽셀에 딱 맞게 정렬
+    icons_config.FontDataOwnedByAtlas = false; // 폰트 데이터 소유권 설정(메모리 관리)
+
+    io.Fonts->AddFontFromMemoryTTF(
+        (void*)fontawesome_ttf, // 메모리에서 아이콘 폰트 데이터 사용
+        fontawesome_len,        // 폰트 데이터 크기
+        18.0f,                  // base_font와 같은 크기로 맞춤
+        &icons_config,          // MergeMode 등 옵션 적용
+        icons_ranges            // 아이콘 유니코드 범위만 포함
+    );
+}
+
 
 
     //
