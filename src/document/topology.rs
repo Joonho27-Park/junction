@@ -165,7 +165,7 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                         }
                         Function::ShiftingSignal { has_distant } => {
                             // TODO this seems unnecessary when we can simply copy the `Function`s.
-                            track_objs.push((pos,*id, Function::MainSignal { has_distant: *has_distant },
+                            track_objs.push((pos,*id, Function::ShiftingSignal { has_distant: *has_distant },
                                              Some(get_dir_from_side(&pt, *loc))));
                         }
                         Function::Switch => {

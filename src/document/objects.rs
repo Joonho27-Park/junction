@@ -49,10 +49,74 @@ impl Object {
                     let offset = 0.25*normal*factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = pt_on_line + offset;
-            }else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
+            } else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
                 self.loc = pt_on_line;
-            }else if self.functions.iter().find(|c| matches!(c, Function::Switch)).is_some() {
-                self.loc = pt_on_line;
+            } else if self.functions.iter().find(|c| matches!(c, Function::Switch { .. })).is_some() {
+                // Switch는 NDType::Sw(side) 노드의 normal 방향 offset 위치와 가까울 때만 배치 가능
+                let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
+                    1.0 } else { -1.0 };
+                let offset = 0.5*normal*factor;
+                let place_pos = pt_on_line + offset;
+                let mut found = false;
+                
+                // topology에서 NDType::Sw 노드들을 찾아서 검사
+                // topology는 analysis.data().topology에 있지만, 여기서는 model만 접근 가능
+                // 따라서 model.node_data 대신 topology 변환 로직을 직접 사용
+                
+                // 현재 위치 근처의 모든 격자점들을 검사
+                let search_radius = 2;
+                let center_x = pt_on_line.x.round() as i32;
+                let center_y = pt_on_line.y.round() as i32;
+                
+                for dx in -search_radius..=search_radius {
+                    for dy in -search_radius..=search_radius {
+                        let check_pt = glm::vec2(center_x + dx, center_y + dy);
+                        let check_pt_f = glm::vec2(check_pt.x as f32, check_pt.y as f32);
+                        
+                        // 해당 격자점에서 연결된 선로들을 확인
+                        let mut connections = Vec::new();
+                        for l in model.linesegs.iter() {
+                            if l.0 == check_pt || l.1 == check_pt {
+                                let other_pt = if l.0 == check_pt { l.1 } else { l.0 };
+                                connections.push((other_pt, glm::vec2(other_pt.x as f32, other_pt.y as f32)));
+                            }
+                        }
+                        
+                        // 3개의 연결이 있으면 Switch일 가능성이 높음
+                        if connections.len() == 3 {
+                            // Switch 패턴 확인 (간단한 버전)
+                            let mut angles = Vec::new();
+                            for (_, other_pt_f) in &connections {
+                                let vec_to_other = other_pt_f - check_pt_f;
+                                let angle = vec_to_other.y.atan2(vec_to_other.x);
+                                angles.push(angle);
+                            }
+                            
+                            // Switch의 normal 방향 계산
+                            if let Some((l, _, _)) = model.get_closest_lineseg(check_pt_f) {
+                                let tangent = glm::vec2(l.1.x as f32 - l.0.x as f32, l.1.y as f32 - l.0.y as f32);
+                                let normal = glm::vec2(-tangent.y, tangent.x);
+                                let normal_len = glm::length(&normal);
+                                let n = if normal_len > 0.0 { normal / normal_len } else { normal };
+                                let sw_place_pos = check_pt_f + 0.5 * n * factor;
+                                
+                                // place_pos와 sw_place_pos가 가까우면 허용
+                                if glm::distance(&place_pos, &sw_place_pos) <= 1.2 {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if found { break; }
+                }
+                
+                if found {
+                    self.loc = place_pos;
+                } else {
+                    self.loc = place_pos;
+                    return Some(());
+                }
             }
 
             None
@@ -79,14 +143,10 @@ impl Object {
 
             for f in self.functions.iter() {
                 match f {
+                    // 궤도 분리기
                     Function::Detector => {
                         ImDrawList_AddLine(draw_list, p - normal, p + normal, c, 5.0);
-                        /*
-                        배경 색갈과 같은 감지기. thickness는 4.0으로 하여 좀 더 잘 보이도록 설정
-                        let detector_color = config.color_u32(RailUIColorName::CanvasDetector);
-                        ImDrawList_AddLine(draw_list, p - normal, p + normal, detector_color, 4.0);
-                        */    
-                    },
+                    }, // 신호기
                     Function::MainSignal { has_distant } => {
                         // base
                         ImDrawList_AddLine(draw_list, p + normal, p - normal, c, 2.0);
@@ -123,6 +183,7 @@ impl Object {
                         // main signal
                         ImDrawList_AddCircle(draw_list, p + stem*tangent + tangent, scale, c, 8, 2.0);
                     },
+                    // 입환신호기
                     Function::ShiftingSignal { has_distant } => {
                     // 신호기 수평 라인
                     ImDrawList_AddLine(draw_list, p + normal, p - normal, c, 2.0);
@@ -271,17 +332,44 @@ impl Object {
                     // 외곽선만 그림(채우지 않음)
                     ImDrawList_PathStroke(draw_list, c, true, 2.0);
                 },
+                // 선로전환기
                 Function::Switch => {
-                    // Switch를 위한 간단한 X 모양 그리기
+                    // Switch를 위한 원과 직사각형 그리기
                     let switch_size = scale * 1.5;
-                    ImDrawList_AddLine(draw_list, 
-                        p + ImVec2 { x: -switch_size, y: -switch_size },
-                        p + ImVec2 { x: switch_size, y: switch_size },
-                        c, 3.0);
-                    ImDrawList_AddLine(draw_list, 
-                        p + ImVec2 { x: switch_size, y: -switch_size },
-                        p + ImVec2 { x: -switch_size, y: switch_size },
-                        c, 3.0);
+                    
+                    // tangent 벡터 정규화
+                    let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
+                    let t = if tangent_len > 0.0 {
+                        ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
+                    } else { ImVec2 { x: 1.0, y: 0.0 } };
+                    
+                    // normal 벡터 계산 (tangent에 수직)
+                    let n = ImVec2 { x: -t.y, y: t.x };
+                    
+                    // 왼쪽 원 그리기 (tangent 방향으로 이동)
+                    let left_circle_pos = p + mul_imvec2(t, -switch_size * 1.5);
+                    ImDrawList_AddCircle(draw_list, left_circle_pos, switch_size * 0.8, c, 8, 2.0);
+                    
+                    // 오른쪽 직사각형 그리기
+                    let circle_diameter = switch_size * 0.8 * 2.0; // 원의 지름
+                    let rect_width = switch_size * 2.5;
+                    let rect_height = circle_diameter * 0.9; // 원의 지름과 같은 높이
+                    let right_rect_pos = p + mul_imvec2(t, switch_size * 0.5);
+                    // a gap between a circle and a rectangle
+                    let gap_offset = mul_imvec2(t, 3.0);
+                    
+                    // 직사각형의 네 꼭지점 계산 (tangent와 normal 방향으로)
+                    let rect_center = right_rect_pos + gap_offset;
+                    let rect_top_left = rect_center + mul_imvec2(t, -rect_width * 0.5) + mul_imvec2(n, -rect_height * 0.5);
+                    let rect_top_right = rect_center + mul_imvec2(t, rect_width * 0.5) + mul_imvec2(n, -rect_height * 0.5);
+                    let rect_bottom_right = rect_center + mul_imvec2(t, rect_width * 0.5) + mul_imvec2(n, rect_height * 0.5);
+                    let rect_bottom_left = rect_center + mul_imvec2(t, -rect_width * 0.5) + mul_imvec2(n, rect_height * 0.5);
+                    
+                    // 회전된 직사각형 그리기 (4개의 선으로)
+                    ImDrawList_AddLine(draw_list, rect_top_left, rect_top_right, c, 2.0);
+                    ImDrawList_AddLine(draw_list, rect_top_right, rect_bottom_right, c, 2.0);
+                    ImDrawList_AddLine(draw_list, rect_bottom_right, rect_bottom_left, c, 2.0);
+                    ImDrawList_AddLine(draw_list, rect_bottom_left, rect_top_left, c, 2.0);
                 }
             }
 
