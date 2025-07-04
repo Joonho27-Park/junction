@@ -385,6 +385,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
 
 fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
     unsafe  {
+    // 마우스 커서 버튼: 선택 모드
     if toolbar_button(
         const_cstr!("\u{f245}").as_ptr(), 
                       matches!(inf_view.action, Action::Normal(_)), true) {
@@ -398,9 +399,9 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
 
     igSameLine(0.0,-1.0);
 
-    object_select(inf_view);
-
-    if toolbar_button(const_cstr!("\u{f637}").as_ptr(), 
+    // 객체삽입 버튼: 객체 삽입(신호기, 궤도 분리, 선로 전환기)
+    let current_icon = get_current_object_icon(inf_view);
+    if toolbar_button(current_icon,
                       matches!(inf_view.action, Action::InsertObject(_)) || 
                       matches!(inf_view.action, Action::SelectObjectType), true) {
         inf_view.action = Action::SelectObjectType;
@@ -410,8 +411,83 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         widgets::show_text("\u{f637} insert object (S)\nOpens a drop-down menu for selecting an object type.\nInsert the object by clicking a position.");
         igEndTooltip();
     }
+    // Fly-out menu
+    if matches!(&inf_view.action, Action::SelectObjectType) {
+        let button_pos = igGetItemRectMin();
+        let button_size = igGetItemRectSize();
+        let menu_pos = ImVec2 { x: button_pos.x, y: button_pos.y + button_size.y - 1.0 };
+        
+        igSetNextWindowPos(menu_pos, 0 as _, ImVec2 { x: 0.0, y: 0.0 });
+        igSetNextWindowSize(ImVec2 { x: 170.0, y: 0.0 }, 0 as _);
+        
+        let window_flags = ImGuiWindowFlags__ImGuiWindowFlags_NoMove as i32 | 
+                          ImGuiWindowFlags__ImGuiWindowFlags_NoResize as i32 |
+                          ImGuiWindowFlags__ImGuiWindowFlags_NoCollapse as i32 |
+                          ImGuiWindowFlags__ImGuiWindowFlags_NoTitleBar as i32;
+        
+        if igBegin(const_cstr!("ObjectMenu").as_ptr(), std::ptr::null_mut(), window_flags) {
+            // Home Signal (H)
+            if igSelectable(const_cstr!("\u{f637} Home Signal (H)").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: false }],
+                    }
+                ));
+            }
+            
+            // Departure Signal (E)
+            if igSelectable(const_cstr!("\u{f5b0} Departure Signal (E)").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: true }],
+                    }
+                ));
+            }
+            
+            // Shunting Signal (U)
+            if igSelectable(const_cstr!("\u{f061} Shunting Signal (U)").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::ShiftingSignal { has_distant: false }],
+                    }
+                ));
+            }
+            
+            // Section Insulator (I)
+            if igSelectable(const_cstr!("\u{f715} Section Insulator (I)").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Detector],
+                    }
+                ));
+            }
+            
+            // Switch (W)
+            if igSelectable(const_cstr!("\u{f126} Switch (W)").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Switch],
+                    }
+                ));
+            }
+            
+            igEnd();
+        }
+    }
+
     igSameLine(0.0,-1.0);
 
+    //  pencil 버튼: tack 그리기
     if toolbar_button(const_cstr!("\u{f303}").as_ptr(), 
                       matches!(inf_view.action, Action::DrawingLine(_)), true ) {
         inf_view.action = Action::DrawingLine(None);
@@ -422,6 +498,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         igEndTooltip();
     }
     igSameLine(0.0,-1.0);
+
+    // 되돌리기 버튼
     if toolbar_button(const_cstr!("\u{f0e2}").as_ptr(), false, analysis.can_undo()) {
         analysis.undo();
     }
@@ -431,6 +509,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         igEndTooltip();
     }
     igSameLine(0.0,-1.0);
+
+    // 다시하기 버튼
     if toolbar_button(const_cstr!("\u{f01e}").as_ptr(), false, analysis.can_redo()) {
         analysis.redo();
     }
@@ -469,32 +549,30 @@ fn toolbar_button(name :*const i8, selected :bool, enabled :bool) -> bool {
     }
 }
 
-fn object_select(inf_view :&mut InfView) {
-    unsafe {
-        if matches!(&inf_view.action, Action::SelectObjectType) {
-            let object_types = [
-                (const_cstr!("Home Signal"), Function::MainSignal { has_distant: false }),
-                (const_cstr!("Departure Signal"), Function::MainSignal { has_distant: true }),
-                (const_cstr!("Shunting Signal"), Function::ShiftingSignal { has_distant: false }),
-                (const_cstr!("Section Insulator"), Function::Detector),
-                (const_cstr!("Switch"), Function::Switch),
-            ];
-            for (i, (display_name, function)) in object_types.iter().enumerate() {
-                let selected = false; // 필요시 선택 상태 표시
-                if toolbar_button(display_name.as_ptr(), selected, true) {
-                    inf_view.action = Action::InsertObject(Some(
-                        Object {
-                            loc: glm::vec2(0.0, 0.0),
-                            tangent: glm::vec2(1,0),
-                            functions: vec![*function],
-                        }
-                    ));
-                }
-                if i != object_types.len() - 1 {
-                    igSameLine(0.0, -1.0); // 버튼을 한 줄에 나란히
-                }
+// 객체 삽입 버튼: 현재 선택된 객체의 아이콘 반환
+fn get_current_object_icon(inf_view :&InfView) -> *const i8 {
+    match &inf_view.action {
+        Action::InsertObject(Some(obj)) => {
+            if obj.functions.contains(&Function::MainSignal { has_distant: false }) {
+                const_cstr!("\u{f637}").as_ptr() // Home Signal
+            } else if obj.functions.contains(&Function::MainSignal { has_distant: true }) {
+                const_cstr!("\u{f5b0}").as_ptr() // Departure Signal
+            } else if obj.functions.contains(&Function::ShiftingSignal { has_distant: false }) {
+                const_cstr!("\u{f061}").as_ptr() // Shunting Signal
+            } else if obj.functions.contains(&Function::Detector) {
+                const_cstr!("\u{f715}").as_ptr() // Section Insulator
+            } else if obj.functions.contains(&Function::Switch) {
+                const_cstr!("\u{f126}").as_ptr() // Switch
+            } else {
+                const_cstr!("\u{f637}").as_ptr() // Default: Home Signal
             }
-        }
+        },
+        Action::SelectObjectType => {
+            const_cstr!("\u{f637}").as_ptr() // Default: Home Signal
+        },
+        _ => {
+            const_cstr!("\u{f637}").as_ptr() // Default: Home Signal
+        },
     }
 }
 
