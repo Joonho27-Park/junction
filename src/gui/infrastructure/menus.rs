@@ -15,8 +15,8 @@ use crate::document::interlocking::*;
 use crate::gui::widgets;
 use crate::gui::plan;
 use crate::config::RailUIColorName;
-
-
+use crate::document::model::generate_unique_dispatch_name;
+use crate::document::model::generate_unique_plan_name;
 
 pub fn node_editor(analysis :&mut Analysis, pt :Pt) -> Option<()> {
     let (nd,_tangent) = analysis.data().topology.as_ref()?.1.locations.get(&pt)?;
@@ -192,7 +192,8 @@ pub fn add_plan_visit(analysis :&mut Analysis,
                                  .trains.get_mut(train_id).unwrap();
                 visits
             } else {
-                let plan_name = format!("Plan {}", m.plans.next_id()+1);
+                
+                let plan_name = generate_unique_plan_name(&m.plans);
                 let plan_idx = m.plans.insert(PlanSpec::new_empty(plan_name));
                 let plan = m.plans.get_mut(plan_idx).unwrap();
                 let vehicle = m.vehicles.iter().nth(0).map(|(id,v)| id).cloned();
