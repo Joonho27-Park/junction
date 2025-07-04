@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::document::view::*;
 use crate::document::model::*;
+use crate::document::infview::{round_coord, unround_coord};
 
 use crate::config::*;
 use crate::util::*;
@@ -42,15 +43,34 @@ impl Object {
                         1.0 } else { -1.0 };
                     let offset = 0.25*normal*factor;
                     if factor > 0.0 { self.tangent *= -1; }
-                    self.loc = pt_on_line + offset;
+                    self.loc = glm::vec2(
+                        pt_on_line.x.round(),
+                        pt_on_line.y.round()
+                    );
+                    if !model.has_detector_at(self.loc) {
+                        self.loc += offset;
+                        return Some(());
+                    }
+                    self.loc += offset;
             } else if self.functions.iter().find(|c| matches!(c, Function::ShiftingSignal { .. })).is_some() {
                     let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                         1.0 } else { -1.0 };
                     let offset = 0.25*normal*factor;
                     if factor > 0.0 { self.tangent *= -1; }
-                    self.loc = pt_on_line + offset;
+                    self.loc = glm::vec2(
+                        pt_on_line.x.round(),
+                        pt_on_line.y.round()
+                    );
+                    if !model.has_detector_at(self.loc) {
+                        self.loc += offset;
+                        return Some(());
+                    }
+                    self.loc += offset;
             } else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
-                self.loc = pt_on_line;
+                self.loc = glm::vec2(
+                    pt_on_line.x.round(),
+                    pt_on_line.y.round()
+                );
             } else if self.functions.iter().find(|c| matches!(c, Function::Switch { .. })).is_some() {
                 // Switch는 NDType::Sw(side) 노드의 normal 방향 offset 위치와 가까울 때만 배치 가능
                 let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
