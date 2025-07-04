@@ -20,15 +20,15 @@ pub fn debug_window(mut popen :bool, app :&app::App, inf_canvas :Option<&Draw>, 
     let defaultopen = ImGuiTreeNodeFlags__ImGuiTreeNodeFlags_DefaultOpen;
 
     if igTreeNodeExStr(const_cstr!("Application state").as_ptr(), defaultopen as _) {
-        widgets::show_text(&format!("{:#?}", app.document.fileinfo));
-        //ui::show_text(&app.document.viewmodel.info());
+        widgets::long_text(&format!("{:#?}", app.document.fileinfo));
+        //ui::long_text(&app.document.viewmodel.info());
 
         //if igTreeNodeStr(const_cstr!("Canvas").as_ptr()) {
-        //    ui::show_text(&format!("{:#?}", allstate.canvas));
+        //    ui::long_text(&format!("{:#?}", allstate.canvas));
         //    igTreePop();
         //}
         //if igTreeNodeStr(const_cstr!("Diagram").as_ptr()) {
-        //    ui::show_text(&format!("{:#?}", allstate.diagram));
+        //    ui::long_text(&format!("{:#?}", allstate.diagram));
         //    igTreePop();
         //}
         igTreePop();
@@ -37,32 +37,32 @@ pub fn debug_window(mut popen :bool, app :&app::App, inf_canvas :Option<&Draw>, 
 
     if igTreeNodeStr(const_cstr!("Model").as_ptr()) {
         // TODO threads 
-        //ui::show_text(&allstate.viewmodel.get_undoable().info());
+        //ui::long_text(&allstate.viewmodel.get_undoable().info());
 
         let model = app.document.analysis.model();
 
         if igTreeNodeStr(const_cstr!("Line segments").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.linesegs));
+            widgets::long_text(&format!("{:#?}", model.linesegs));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Objects").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.objects));
+            widgets::long_text(&format!("{:#?}", model.objects));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Node data override").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.node_data));
+            widgets::long_text(&format!("{:#?}", model.node_data));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Vehicles").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.vehicles));
+            widgets::long_text(&format!("{:#?}", model.vehicles));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Dispatches").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.dispatches));
+            widgets::long_text(&format!("{:#?}", model.dispatches));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Plans").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", model.plans));
+            widgets::long_text(&format!("{:#?}", model.plans));
             igTreePop();
         }
         igTreePop();
@@ -71,17 +71,17 @@ pub fn debug_window(mut popen :bool, app :&app::App, inf_canvas :Option<&Draw>, 
     if igTreeNodeStr(const_cstr!("Derived data / view model").as_ptr()) {
         let derived = app.document.analysis.data();
         if igTreeNodeStr(const_cstr!("Topology").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", derived.topology));
+            widgets::long_text(&format!("{:#?}", derived.topology));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("DGraph").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", derived.dgraph));
+            widgets::long_text(&format!("{:#?}", derived.dgraph));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("All paths").as_ptr()) {
             if let Some((_,dgraph)) = &derived.dgraph {
                 let (l,paths) = &dgraph.all_paths;
-                widgets::show_text(&format!("{} paths, with equality length margin {:.3}m", paths.len(), l));
+                widgets::long_text(&format!("{} paths, with equality length margin {:.3}m", paths.len(), l));
                 for (i,p) in paths.iter().enumerate() {
                     igPushIDInt(i as _);
                     show_path(&app.config, dgraph, p, inf_canvas, inf_view);
@@ -91,11 +91,11 @@ pub fn debug_window(mut popen :bool, app :&app::App, inf_canvas :Option<&Draw>, 
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Interlocking").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", derived.interlocking));
+            widgets::long_text(&format!("{:#?}", derived.interlocking));
             igTreePop();
         }
         if igTreeNodeStr(const_cstr!("Dispatch").as_ptr()) {
-            widgets::show_text(&format!("{:#?}", derived.dispatch));
+            widgets::long_text(&format!("{:#?}", derived.dispatch));
             igTreePop();
         }
         igTreePop();
@@ -141,7 +141,7 @@ fn show_path(config :&Config, dgraph :&DGraph, path :&[allpaths::Edge],
             }
         }
         igSameLine(0.0,-1.0);
-        widgets::show_text(&format!("Path with {} segments, length {:.3}m.", 
+        widgets::long_text(&format!("Path with {} segments, length {:.3}m.", 
                                     path.len(), allpaths::path_length(&path)));
     }
 }
