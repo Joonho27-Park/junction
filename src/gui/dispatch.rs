@@ -18,64 +18,74 @@ use crate::document::infview::InfView;
 use crate::document::model::generate_unique_dispatch_name;
 use crate::document::model::generate_unique_plan_name;
 
-pub fn dispatch_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfView,
-                     analysis :&mut Analysis, dv :&mut DispatchView) -> Option<Option<DispatchView>> {
-    let mut new_dispatch :Option<Option<DispatchView>> = None;
+pub fn dispatch_view(
+    config: &Config,
+    inf_canvas: Option<&Draw>,
+    inf_view: &InfView,
+    analysis: &mut Analysis,
+    dv: &mut DispatchView,
+) -> Option<Option<DispatchView>> {
+    let mut new_dispatch: Option<Option<DispatchView>> = None;
     let sel = dispatch_select_bar(config, &Some(*dv), analysis);
     new_dispatch = sel.or(new_dispatch);
 
     match dv {
         DispatchView::Manual(manual) => {
             let graph = analysis.data().dispatch.vecmap_get(manual.dispatch_idx);
-            if let Some((_gen,graph)) = graph {
+            if let Some((_gen, graph)) = graph {
                 unsafe { igSameLine(0.0, -1.0); }
                 if let Some(action) = diagram_view(config, inf_canvas, inf_view, analysis, manual, graph) {
-                    analysis.edit_model(|m| {
-                        match action {
-                            DiagramViewAction::DeleteCommand { id } => {
-                                m.dispatches.get_mut(manual.dispatch_idx)?.commands.retain(|(x,_)| *x != id);
-                            },
-                            DiagramViewAction::MoveCommand { idx, id, t } => {
+                    match action {
+                        DiagramViewAction::DeleteCommand { id } => {
+                            analysis.edit_model(|m| {
+                                m.dispatches.get_mut(manual.dispatch_idx)?.commands.retain(|(x, _)| *x != id);
+                                None
+                            });
+                        }
+                        DiagramViewAction::MoveCommand { idx, id, t } => {
+                            analysis.edit_model(|m| {
                                 let commands = &mut m.dispatches.get_mut(manual.dispatch_idx)?.commands;
-                                for (c_id,(c_t,_)) in commands.iter_mut() {
+                                for (c_id, (c_t, _)) in commands.iter_mut() {
                                     if *c_id == id { *c_t = t; }
                                 }
-                                commands.sort_by_key(|(_,(t,_))| OrderedFloat(*t));
-                            }
-                        };
-                        None
-                    });
+                                commands.sort_by_key(|(_, (t, _))| OrderedFloat(*t));
+                                None
+                            });
+                        }
+                        DiagramViewAction::Close => {
+                            new_dispatch = Some(None);
+                        }
+                    }
                 }
             }
 
-            if !analysis.model().dispatches.iter().any(|(id,_)| *id == manual.dispatch_idx) {
+            if !analysis.model().dispatches.iter().any(|(id, _)| *id == manual.dispatch_idx) {
                 new_dispatch = Some(None);
             }
-        },
+        }
         DispatchView::Auto(auto) => {
             let new_auto = plan::edit_plan(config, inf_canvas, inf_view, analysis, auto);
             new_dispatch = new_auto.or(new_dispatch);
 
             if let Some(manual) = &mut auto.dispatch {
-                if let Some(Some((_gen,dispatches))) = analysis.data().plandispatches.get(auto.plan_idx) {
+                if let Some(Some((_gen, dispatches))) = analysis.data().plandispatches.get(auto.plan_idx) {
                     if let Some(graph) = dispatches.get(manual.dispatch_idx) {
                         diagram_view(config, inf_canvas, inf_view, analysis, manual, graph);
                     } else {
                         // Plan doesn't exist anymore.
                         if dispatches.len() > 0 {
-                            manual.dispatch_idx = dispatches.len()-1;
+                            manual.dispatch_idx = dispatches.len() - 1;
                         } else {
                             auto.dispatch = None;
                         }
                     }
                 }
             }
-        },
+        }
     }
 
     new_dispatch
 }
-
 pub enum Action {
     DispatchName(usize,String),
     PlanName(usize, String),

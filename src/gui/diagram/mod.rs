@@ -18,6 +18,7 @@ mod draw;
 pub enum DiagramViewAction {
     DeleteCommand { id :usize },
     MoveCommand { idx :usize, id :usize, t :f64 },
+    Close,
 }
 
 pub fn default_viewport(graph :&DispatchOutput) -> DiagramViewport {
@@ -34,7 +35,9 @@ pub fn diagram_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfVi
                     analysis :&Analysis, dv :&mut ManualDispatchView, graph :&DispatchOutput) -> Option<DiagramViewAction> {
     let mut action = None;
     unsafe {
-        diagram_toolbar(dv, graph);
+        if let Some(toolbar_action) = diagram_toolbar(dv, graph) {
+            return Some(toolbar_action);
+        }
         let size = igGetContentRegionAvail_nonUDT2().into();
         let draw = widgets::canvas(size,
                     config.color_u32(RailUIColorName::GraphBackground),
@@ -126,16 +129,25 @@ fn scroll(draw :&Draw, viewport :&mut DiagramViewport) {
 }
 
 
-fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput) {
+pub fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput) -> Option<DiagramViewAction> {
     unsafe {
-    let label = if dv.play { const_cstr!("\u{f04c}") }
-                else { const_cstr!("\u{f04b}") };
-    if igButton(label.as_ptr(), ImVec2::zero()) {
-        dv.play = !dv.play;
+        let label = if dv.play { const_cstr!("\u{f04c}") }
+                    else { const_cstr!("\u{f04b}") };
+        if igButton(label.as_ptr(), ImVec2::zero()) {
+            dv.play = !dv.play;
+        }
+        igSameLine(0.0,-1.0);
+        if igButton(const_cstr!("\u{f0b2}").as_ptr(), ImVec2::zero()) {
+            dv.viewport = Some(default_viewport(graph));
+        }
+        let avail = igGetContentRegionAvail().x;
+        if avail > 30.0 {
+            let cur = igGetCursorPos().x;
+            igSetCursorPosX(cur + avail - 24.0);
+        }
+        if igButton(const_cstr!("\u{f00d}").as_ptr(), ImVec2::zero()) {
+            return Some(DiagramViewAction::Close);
+        }
     }
-    igSameLine(0.0,-1.0);
-    if igButton(const_cstr!("\u{f0b2}").as_ptr(), ImVec2::zero()) {
-        dv.viewport = Some(default_viewport(graph));
-    }
-    }
+    None
 }
