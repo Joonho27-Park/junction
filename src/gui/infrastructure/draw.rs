@@ -185,22 +185,38 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
         //placed된 후의 색깔 지정. -> canvas색깔과 같음.
         let color_detector = config.color_u32(RailUIColorName::CanvasDetector);
 
-        for (pta,obj) in &m.objects {
+        // 1. 객체 정보 한 번에 수집
+        let mut detectors = Vec::new();
+        let mut signals = Vec::new();
+        let mut switches = Vec::new();
+
+        let empty = Vec::new(); // 루프 밖에 선언
+        for (pta, obj) in &m.objects {
             let selected = inf_view.selection.contains(&Ref::Object(*pta));
             let preview = sel_window.map(|(a,b)| 
-                     util::point_in_rect(inf_view.view.
-                             world_ptc_to_screen(unround_coord(*pta)),a,b)).unwrap_or(false);
-            
-             // 감지기는 배경색과 같은 색상, 신호기는 기존 색상 사용
-            let base_color = if obj.functions.iter().any(|f| matches!(f, Function::Detector)) {
-                color_detector
-            } else {
-                color_obj
-            };
-
-            let col = if selected || preview { color_obj_selected } else { base_color };
-            let empty = vec![];
+                util::point_in_rect(inf_view.view.world_ptc_to_screen(unround_coord(*pta)),a,b)).unwrap_or(false);
             let state = object_states.get(pta).unwrap_or(&empty);
+
+            if obj.functions.iter().any(|f| matches!(f, Function::Detector)) {
+                detectors.push((pta, obj, selected, preview, state));
+            } else if obj.functions.iter().any(|f| matches!(f, Function::MainSignal { .. } | Function::ShiftingSignal { .. })) {
+                signals.push((pta, obj, selected, preview, state));
+            } else if obj.functions.iter().any(|f| matches!(f, Function::Switch)) {
+                switches.push((pta, obj, selected, preview, state));
+            }
+        }
+
+        // 2. 타입별로 draw
+        for (pta, obj, selected, preview, state) in detectors {
+            let col = if selected || preview { color_obj_selected } else { color_detector };
+            obj.draw(draw.pos, &inf_view.view, draw.draw_list, col, state, config);
+        }
+        for (pta, obj, selected, preview, state) in signals {
+            let col = if selected || preview { color_obj_selected } else { color_obj };
+            obj.draw(draw.pos, &inf_view.view, draw.draw_list, col, state, config);
+        }
+        for (pta, obj, selected, preview, state) in switches {
+            let col = if selected || preview { color_obj_selected } else { color_obj };
             obj.draw(draw.pos, &inf_view.view, draw.draw_list, col, state, config);
         }
     }
