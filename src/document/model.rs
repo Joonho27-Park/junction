@@ -371,14 +371,24 @@ impl Model {
     }
 
     pub fn get_linesegs_in_rect(&self, a :PtC, b :PtC) -> Vec<(Pt,Pt)> {
-        let mut r = Vec::new();
-        for (p1,p2) in self.linesegs.iter() {
-            if in_rect(glm::vec2(p1.x as f32, p1.y as f32), a, b) ||
-               in_rect(glm::vec2(p2.x as f32, p2.y as f32), a, b) {
-                   r.push((*p1,*p2));
+        let mut output = Vec::new();
+        for (p1,p2) in &self.linesegs {
+            if in_rect(glm::vec2(p1.x as _, p1.y as _), a, b) || 
+               in_rect(glm::vec2(p2.x as _, p2.y as _), a, b) {
+                output.push((*p1,*p2));
             }
         }
-        r
+        output
+    }
+
+    /// 주어진 위치에 detector가 있는지 확인
+    pub fn has_detector_at(&self, pt: PtC) -> bool {
+        let pt_rounded = round_coord(pt);
+        if let Some(obj) = self.objects.get(&pt_rounded) {
+            obj.functions.iter().any(|f| matches!(f, Function::Detector))
+        } else {
+            false
+        }
     }
 
     pub fn delete(&mut self, x :Ref) {
@@ -480,3 +490,4 @@ impl<T : Clone + Default, C : Eq> Undoable<T,C> {
         self.class = Some(cl);
     }
 }
+
