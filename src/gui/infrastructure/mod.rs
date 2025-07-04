@@ -385,6 +385,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
 
 fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
     unsafe  {
+    // 마우스 커서 버튼: 선택 모드
     if toolbar_button(
         const_cstr!("\u{f245}").as_ptr(), 
                       matches!(inf_view.action, Action::Normal(_)), true) {
@@ -398,6 +399,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
 
     igSameLine(0.0,-1.0);
 
+    // 트랙 버튼: 객체 삽입(신호기, 궤도 분리, 선로 전환기)
     object_select(inf_view);
 
     if toolbar_button(const_cstr!("\u{f637}").as_ptr(), 
@@ -412,6 +414,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
     }
     igSameLine(0.0,-1.0);
 
+    //  pencil 버튼: tack 그리기
     if toolbar_button(const_cstr!("\u{f303}").as_ptr(), 
                       matches!(inf_view.action, Action::DrawingLine(_)), true ) {
         inf_view.action = Action::DrawingLine(None);
@@ -422,6 +425,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         igEndTooltip();
     }
     igSameLine(0.0,-1.0);
+
+    // 되돌리기 버튼
     if toolbar_button(const_cstr!("\u{f0e2}").as_ptr(), false, analysis.can_undo()) {
         analysis.undo();
     }
@@ -431,6 +436,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         igEndTooltip();
     }
     igSameLine(0.0,-1.0);
+
+    // 다시하기 버튼
     if toolbar_button(const_cstr!("\u{f01e}").as_ptr(), false, analysis.can_redo()) {
         analysis.redo();
     }
@@ -469,30 +476,97 @@ fn toolbar_button(name :*const i8, selected :bool, enabled :bool) -> bool {
     }
 }
 
+// 객체 삽입(장내 신호기, 출발 신호기, 입환 신호기, 궤도 분리, 선로 전환기)
 fn object_select(inf_view :&mut InfView) {
     unsafe {
         if matches!(&inf_view.action, Action::SelectObjectType) {
-            let object_types = [
-                (const_cstr!("Home Signal"), Function::MainSignal { has_distant: false }),
-                (const_cstr!("Departure Signal"), Function::MainSignal { has_distant: true }),
-                (const_cstr!("Shunting Signal"), Function::ShiftingSignal { has_distant: false }),
-                (const_cstr!("Section Insulator"), Function::Detector),
-                (const_cstr!("Switch"), Function::Switch),
-            ];
-            for (i, (display_name, function)) in object_types.iter().enumerate() {
-                let selected = false; // 필요시 선택 상태 표시
-                if toolbar_button(display_name.as_ptr(), selected, true) {
-                    inf_view.action = Action::InsertObject(Some(
-                        Object {
-                            loc: glm::vec2(0.0, 0.0),
-                            tangent: glm::vec2(1,0),
-                            functions: vec![*function],
-                        }
-                    ));
-                }
-                if i != object_types.len() - 1 {
-                    igSameLine(0.0, -1.0); // 버튼을 한 줄에 나란히
-                }
+            // Home Signal (H) - 신호등 아이콘
+            let is_selected = matches!(&inf_view.action, Action::InsertObject(Some(obj)) if obj.functions.contains(&Function::MainSignal { has_distant: false }));
+            if toolbar_button(const_cstr!("\u{f637} H").as_ptr(), is_selected, true) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: false }],
+                    }
+                ));
+            }
+            if igIsItemHovered(0) {
+                igBeginTooltip();
+                igText(const_cstr!("Home Signal (H)").as_ptr());
+                igEndTooltip();
+            }
+            igSameLine(0.0, -1.0);
+
+            // Departure Signal (E) - 비행기 출발 아이콘
+            let is_selected = matches!(&inf_view.action, Action::InsertObject(Some(obj)) if obj.functions.contains(&Function::MainSignal { has_distant: true }));
+            if toolbar_button(const_cstr!("\u{f5b0} E").as_ptr(), is_selected, true) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::MainSignal { has_distant: true }],
+                    }
+                ));
+            }
+            if igIsItemHovered(0) {
+                igBeginTooltip();
+                igText(const_cstr!("Departure Signal (E)").as_ptr());
+                igEndTooltip();
+            }
+            igSameLine(0.0, -1.0);
+
+            // Shunting Signal (U) - 화살표 아이콘
+            let is_selected = matches!(&inf_view.action, Action::InsertObject(Some(obj)) if obj.functions.contains(&Function::ShiftingSignal { has_distant: false }));
+            if toolbar_button(const_cstr!("\u{f061} U").as_ptr(), is_selected, true) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::ShiftingSignal { has_distant: false }],
+                    }
+                ));
+            }
+            if igIsItemHovered(0) {
+                igBeginTooltip();
+                igText(const_cstr!("Shunting Signal (U)").as_ptr());
+                igEndTooltip();
+            }
+            igSameLine(0.0, -1.0);
+
+            // Section Insulator (I) - 사각형 아이콘
+            let is_selected = matches!(&inf_view.action, Action::InsertObject(Some(obj)) if obj.functions.contains(&Function::Detector));
+            if toolbar_button(const_cstr!("\u{f0c8} I").as_ptr(), is_selected, true) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Detector],
+                    }
+                ));
+            }
+            if igIsItemHovered(0) {
+                igBeginTooltip();
+                igText(const_cstr!("Section Insulator (I)").as_ptr());
+                igEndTooltip();
+            }
+            igSameLine(0.0, -1.0);
+
+            // Switch (W) - 포크/분기 아이콘
+            let is_selected = matches!(&inf_view.action, Action::InsertObject(Some(obj)) if obj.functions.contains(&Function::Switch));
+            if toolbar_button(const_cstr!("\u{f126} W").as_ptr(), is_selected, true) {
+                inf_view.action = Action::InsertObject(Some(
+                    Object {
+                        loc: glm::vec2(0.0, 0.0),
+                        tangent: glm::vec2(1,0),
+                        functions: vec![Function::Switch],
+                    }
+                ));
+            }
+            if igIsItemHovered(0) {
+                igBeginTooltip();
+                igText(const_cstr!("Switch (W)").as_ptr());
+                igEndTooltip();
             }
         }
     }
