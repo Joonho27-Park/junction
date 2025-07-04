@@ -15,6 +15,8 @@ use crate::gui::diagram::*;
 use crate::gui::plan::planning_icon;
 use crate::gui::widgets::Draw;
 use crate::document::infview::InfView;
+use crate::document::model::generate_unique_dispatch_name;
+use crate::document::model::generate_unique_plan_name;
 
 pub fn dispatch_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfView,
                      analysis :&mut Analysis, dv :&mut DispatchView) -> Option<Option<DispatchView>> {
@@ -249,7 +251,7 @@ pub fn dispatch_select_bar(config :&Config, dispatch_view :&Option<DispatchView>
         if new_dispatch_auto == Some(false) {
             // Create new dispatch and set it to current
             let mut model = analysis.model().clone();
-            let dispatch_name = format!("Dispatch {}", model.dispatches.next_id()+1);
+            let dispatch_name = generate_unique_dispatch_name(&model.dispatches);
             let id = model.dispatches.insert(model::Dispatch::new_empty(dispatch_name));
             analysis.set_model(model, None);
 
@@ -259,7 +261,7 @@ pub fn dispatch_select_bar(config :&Config, dispatch_view :&Option<DispatchView>
         if new_dispatch_auto == Some(true) {
             // Create new plan and set it to current
             let mut model = analysis.model().clone();
-            let plan_name = format!("Plan {}", model.plans.next_id()+1);
+            let plan_name = generate_unique_plan_name(&model.plans);
             let id = model.plans.insert(model::PlanSpec::new_empty(plan_name));
             analysis.set_model(model, None);
 

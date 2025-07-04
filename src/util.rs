@@ -8,33 +8,51 @@ pub fn order<T: Ord>(a :T, b: T) -> (T,T) {
     if b < a { (b,a) } else { (a,b) }
 }
 
+pub fn clamp_pt(pt: Pt) -> Pt {
+    let clamp = |v: i32| v.max(-10_000).min(10_000);
+    glm::vec2(clamp(pt.x), clamp(pt.y))
+}
 pub fn order_ivec(a :I32Vec2, b: I32Vec2) -> (I32Vec2,I32Vec2) {
     if a.x < b.x { (a,b) } else if a.x > b.x { (b,a) } else if a.y < b.y { (a,b) } else { (b,a) }
 }
 
-pub fn unit_step_diag_line(p1 :Pt, p2 :Pt) -> Vec<Pt> {
-    let dx = p2.x - p1.x;
-    let dy = p2.y - p1.y;
-    (0..=(dx.abs().max(dy.abs()))).map(move |d| glm::vec2(p1.x + d * dx.signum(), p1.y + d * dy.signum() ) ).collect()
+pub fn unit_step_diag_line(p1: Pt, p2: Pt) -> Vec<Pt> {
+    let p1 = clamp_pt(p1);
+    let p2 = clamp_pt(p2);
+    let dx = p2.x as i64 - p1.x as i64;
+    let dy = p2.y as i64 - p1.y as i64;
+    let steps = dx.abs().max(dy.abs());
+    (0..=steps).map(move |d| glm::vec2(
+        (p1.x as i64 + d * dx.signum()) as i32,
+        (p1.y as i64 + d * dy.signum()) as i32
+    )).collect()
 }
 
-pub fn route_line(from :Pt, to :Pt) -> Vec<(Pt,Pt)> {
-	// diag
-	let mut vec = Vec::new();
-	let (dx,dy) = (to.x - from.x, to.y - from.y);
-	let mut other = from;
-	if dy.abs() > 0 {
-		other = glm::vec2(from.x + dy.abs() * dx.signum(), from.y + dy );
-		vec.push((from, other));
-	}
-	if dx.abs() > 0 {
-		let other_dx = to.x - other.x;
-		let goal = glm::vec2(other.x + if other_dx.signum() == dx.signum() { other_dx } else { 0 }, other.y );
-		if other != goal {
-			vec.push((other, goal));
-		}
-	}
-	vec
+pub fn route_line(from: Pt, to: Pt) -> Vec<(Pt, Pt)> {
+    let from = clamp_pt(from);
+    let to = clamp_pt(to);
+    let mut vec = Vec::new();
+    let dx = to.x as i64 - from.x as i64;
+    let dy = to.y as i64 - from.y as i64;
+    let mut other = from;
+    if dy.abs() > 0 {
+        other = glm::vec2(
+            (from.x as i64 + dy.abs() * dx.signum()) as i32,
+            (from.y as i64 + dy) as i32,
+        );
+        vec.push((from, other));
+    }
+    if dx.abs() > 0 {
+        let other_dx = to.x as i64 - other.x as i64;
+        let goal = glm::vec2(
+            (other.x as i64 + if other_dx.signum() == dx.signum() { other_dx } else { 0 }) as i32,
+            other.y,
+        );
+        if other != goal {
+            vec.push((other, goal));
+        }
+    }
+    vec
 }
 
 pub fn point_in_rect(p :ImVec2, a :ImVec2, b :ImVec2) -> bool {

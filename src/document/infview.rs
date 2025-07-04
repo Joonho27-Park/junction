@@ -12,6 +12,7 @@ pub struct InfView {
     pub selection :HashSet<Ref>,
     pub view :View,
     pub instant_cache: dispatch::InstantCache,
+    pub restore_insert_object: bool,
 }
 
 #[derive(Debug)]
@@ -41,6 +42,7 @@ impl InfView {
             selection: HashSet::new(),
             view: View::default(),
             instant_cache: dispatch::InstantCache::new(),
+            restore_insert_object: false,
         }
     }
 }

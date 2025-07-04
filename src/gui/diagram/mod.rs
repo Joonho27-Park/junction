@@ -41,6 +41,11 @@ pub fn diagram_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfVi
                     const_cstr!("diag").as_ptr());
         draw.begin_draw();
 
+        if graph.dispatch.commands.len() == 1 {
+            dv.viewport = Some(default_viewport(graph));
+        } else if dv.viewport.is_none() {
+            dv.viewport = Some(default_viewport(graph));
+        }
         if dv.viewport.is_none() { dv.viewport = Some(default_viewport(graph)); }
 
         let viewport = dv.viewport.as_ref().unwrap();
