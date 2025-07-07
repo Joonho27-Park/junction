@@ -693,7 +693,7 @@ fn context_menu_single(analysis :&mut Analysis,
 }
 
 
-fn delete_selection(analysis :&mut Analysis, inf_view :&mut InfView) {
+pub fn delete_selection(analysis :&mut Analysis, inf_view :&mut InfView) {
     let mut new_model = analysis.model().clone();
     for x in inf_view.selection.drain() {
         new_model.delete(x);

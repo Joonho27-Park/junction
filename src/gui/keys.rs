@@ -2,6 +2,7 @@ use crate::app::App;
 use crate::document::objects::*;
 use crate::document::infview::*;
 use crate::gui::mainmenu;
+use crate::gui::infrastructure::delete_selection;
 use crate::file;
 use crate::document::*;
 
@@ -118,6 +119,28 @@ pub fn keys(app :&mut App) {
                         id: None,
                     }
                 ));
+            }
+
+            // 객체 선택 후, Delete 또는 Backspace 키를 누르면 선택된 객체를 삭제
+            // Delete selected elements with Delete or Backspace key
+            if igIsKeyPressed(ImGuiKey__ImGuiKey_Delete as _, false) {
+                if !app.document.inf_view.selection.is_empty() {
+                    use crate::gui::infrastructure::delete_selection;
+                    delete_selection(&mut app.document.analysis, &mut app.document.inf_view);
+                }
+            }
+            if igIsKeyPressed(ImGuiKey__ImGuiKey_Backspace as _, false) {
+                if !app.document.inf_view.selection.is_empty() {
+                    use crate::gui::infrastructure::delete_selection;
+                    delete_selection(&mut app.document.analysis, &mut app.document.inf_view);
+                }
+            }
+            // Mac Delete key (Key 259)
+            if igIsKeyPressed(259, false) {
+                if !app.document.inf_view.selection.is_empty() {
+                    use crate::gui::infrastructure::delete_selection;
+                    delete_selection(&mut app.document.analysis, &mut app.document.inf_view);
+                }
             }
         }
     }
