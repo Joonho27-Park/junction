@@ -74,7 +74,8 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: false }],
+                        functions: vec![Function::MainSignal { has_distant: false, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -83,7 +84,8 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: true }],
+                        functions: vec![Function::MainSignal { has_distant: true, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -92,7 +94,8 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::ShiftingSignal { has_distant: false }],
+                        functions: vec![Function::ShiftingSignal { has_distant: false, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -102,6 +105,7 @@ pub fn keys(app :&mut App) {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
                         functions: vec![Function::Detector],
+                        id: None,
                     }
                 ));
             }
@@ -111,6 +115,7 @@ pub fn keys(app :&mut App) {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
                         functions: vec![Function::Switch],
+                        id: None,
                     }
                 ));
             }

@@ -45,7 +45,8 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
         let mut obj = objects::Object {
             loc: pt, 
             tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
-            functions: vec![*func],
+            functions: vec![func.clone()],
+            id: None,
         };
         obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
         //println!("ADding object {:?}", obj);
@@ -56,6 +57,7 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
                 loc: pt, 
                 tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
                 functions: vec![Function::Detector],
+                id: None,
             };
             obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
             //println!("ADding object {:?}", obj);
@@ -66,6 +68,7 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
                 loc: pt, 
                 tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
                 functions: vec![Function::Detector],
+                id: None,
             };
             obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
             //println!("ADding object {:?}", obj);

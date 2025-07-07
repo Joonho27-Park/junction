@@ -12,6 +12,15 @@ pub struct InfView {
     pub selection :HashSet<Ref>,
     pub view :View,
     pub instant_cache: dispatch::InstantCache,
+    // 이름 입력 상태
+    pub id_input: Option<IdInputState>,
+}
+
+#[derive(Debug)]
+pub struct IdInputState {
+    pub object: Object,
+    pub id: String,
+    pub position: PtC,
 }
 
 #[derive(Debug)]
@@ -41,6 +50,7 @@ impl InfView {
             selection: HashSet::new(),
             view: View::default(),
             instant_cache: dispatch::InstantCache::new(),
+            id_input: None,
         }
     }
 }

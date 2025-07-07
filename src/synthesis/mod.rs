@@ -93,7 +93,7 @@ pub fn create_model(bg :&SynthesisBackground, design :&Vec<Object>) -> (Topology
     let mut topo = (*bg.topology).clone();
     topo.trackobjects = topo.tracks.iter().map(|_| Vec::new()).collect::<Vec<_>>();
     for (obj_idx,(track_idx,pos,func,dir)) in design.iter().enumerate() {
-        topo.trackobjects[*track_idx].push((*pos, glm::vec2(obj_idx as i32, 0), *func, *dir));
+        topo.trackobjects[*track_idx].push((*pos, glm::vec2(obj_idx as i32, 0), func.clone(), *dir));
         if matches!(func, Function::MainSignal { .. }) {
             topo.trackobjects[*track_idx].push((*pos, glm::vec2(obj_idx as i32, 1), Function::Detector, None));
         }

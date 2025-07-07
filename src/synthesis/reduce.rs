@@ -89,7 +89,7 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                                               detectors.contains(&planner::input::SignalId::Detector(*d + 1)))
                         .unwrap_or(false) {
 
-                        design.push((track_idx, *pos, *func, *dir));
+                        design.push((track_idx, *pos, func.clone(), *dir));
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
                     }
                 },
@@ -99,7 +99,7 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
 
                             
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, *func, *dir));
+                        design.push((track_idx, *pos, func.clone(), *dir));
 
                     } else if sig_id.get(id).map(|o| detectors.contains(&planner::input::SignalId::Signal(*o)))
                         .unwrap_or(false) {
@@ -114,7 +114,7 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
 
                             
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, *func, *dir));
+                        design.push((track_idx, *pos, func.clone(), *dir));
 
                     } else if sig_id.get(id).map(|o| detectors.contains(&planner::input::SignalId::Signal(*o)))
                         .unwrap_or(false) {
@@ -129,7 +129,7 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                                               detectors.contains(&planner::input::SignalId::Detector(*d + 1)))
                         .unwrap_or(false) {
 
-                        design.push((track_idx, *pos, *func, *dir));
+                        design.push((track_idx, *pos, func.clone(), *dir));
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
                     }
                 },

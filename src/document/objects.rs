@@ -18,12 +18,15 @@ pub struct Object {
     pub loc :PtC,
     pub tangent :Vc,
     pub functions :Vec<Function>,
+    // Object구조체에 id라는 field추가. Option<String>으로 하여
+    // 있어도 되고 없어도 되도록 설정.
+    pub id: Option<String>
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[derive(Serialize,Deserialize)]
 //이곳에서 새로운 signal/detector추가
-pub enum Function { MainSignal { has_distant :bool }, Detector , ShiftingSignal { has_distant :bool}, Switch }
+pub enum Function { MainSignal { has_distant :bool, id: Option<String> }, Detector , ShiftingSignal { has_distant :bool, id: Option<String> }, Switch }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
@@ -41,7 +44,10 @@ impl Object {
             if self.functions.iter().find(|c| matches!(c, Function::MainSignal { .. })).is_some() {
                     let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                         1.0 } else { -1.0 };
-                    let offset = 0.25*normal*factor;
+                    // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
+                    let normal_len = glm::length(&normal);
+                    let n = if normal_len > 0.0 { normal / normal_len } else { normal };
+                    let offset = 0.35 * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
                         pt_on_line.x.round(),
@@ -55,7 +61,10 @@ impl Object {
             } else if self.functions.iter().find(|c| matches!(c, Function::ShiftingSignal { .. })).is_some() {
                     let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                         1.0 } else { -1.0 };
-                    let offset = 0.25*normal*factor;
+                    // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
+                    let normal_len = glm::length(&normal);
+                    let n = if normal_len > 0.0 { normal / normal_len } else { normal };
+                    let offset = 0.35 * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
                         pt_on_line.x.round(),
@@ -167,7 +176,7 @@ impl Object {
                     Function::Detector => {
                         ImDrawList_AddLine(draw_list, p - normal, p + normal, c, 5.0);
                     }, // 신호기
-                    Function::MainSignal { has_distant } => {
+                    Function::MainSignal { has_distant, id: _ } => {
                         // base
                         ImDrawList_AddLine(draw_list, p + normal, p - normal, c, 2.0);
 
@@ -202,9 +211,35 @@ impl Object {
                         }
                         // main signal
                         ImDrawList_AddCircle(draw_list, p + stem*tangent + tangent, scale, c, 8, 2.0);
+                        
+                        // base 바로 아래에 id 표시
+                        if let Function::MainSignal { id: Some(id), .. } = f {
+                              // 신호기 방향에 따라 x offset을 다르게 적용
+                              let id_len = id.len() as f32;
+                              let x_offset = if self.tangent.x < 0 {
+                                0.5 + id_len * 1.5 // 왼쪽을 향할 때
+                              } else {
+                                - 3.0 - id_len * 9.0// 오른쪽을 향할 때
+                              };
+                              let y_offset = if self.tangent.x < 0 {
+                                 -7.5 // 왼쪽을 향할 때 y offset -7.5
+                              } else {
+                                 -7.5 // 오른쪽을 향할 때 y offset -7.5
+                              };
+                              let screen_offset = ImVec2 { x: x_offset, y: y_offset };
+                            let text_pos = p + screen_offset;
+                            
+                            // 텍스트 색상: 검은색 (CanvasText)
+                            let text_color = config.color_u32(RailUIColorName::CanvasText);
+                            
+                            // CString으로 변환 (ImGui 텍스트 렌더링용)
+                            let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
+                            
+                            ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
+                        }
                     },
                     // 입환신호기
-                    Function::ShiftingSignal { has_distant } => {
+                    Function::ShiftingSignal { has_distant, id: _ } => {
                     // 신호기 수평 라인
                     ImDrawList_AddLine(draw_list, p + normal, p - normal, c, 2.0);
 

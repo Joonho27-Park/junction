@@ -50,7 +50,7 @@ fn design_decode(bg :&SynthesisBackground, pt: &DVector<f64>, design :&Design, o
             // we have [0,1], and we want to map it to [last_pos,track_length]
             group.scan(0.0, move |prev, ((_tr,_oldpos,func,dir),ipos)| {
                 let pos = glm::lerp_scalar(*prev + min_dist, track_length - min_dist, *ipos);
-                *prev = pos; Some((*tr,pos,*func,*dir))
+                *prev = pos; Some((*tr,pos,func.clone(),*dir))
             })
         }).collect::<Vec<_>>();
     out

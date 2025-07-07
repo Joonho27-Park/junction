@@ -74,7 +74,7 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
     for f in obj.functions.iter() {
         match f {
             Function::Detector => { widgets::show_text("Detector"); },
-            Function::MainSignal { has_distant } => {
+            Function::MainSignal { has_distant, id: _ } => {
                 widgets::show_text("Main signal");
                 let mut has_distant = *has_distant;
                 unsafe {
@@ -84,7 +84,7 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
                     }
                 }
             }
-            Function::ShiftingSignal { has_distant } => {
+            Function::ShiftingSignal { has_distant, id: _ } => {
                 widgets::show_text("Main signal");
                 let mut has_distant = *has_distant;
                 unsafe {
@@ -102,7 +102,7 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
     }
     if let Some(d) = set_distant {
         analysis.edit_model(|new| {
-            new.objects.get_mut(&pta).unwrap().functions = vec![Function::MainSignal { has_distant: d }];
+            new.objects.get_mut(&pta).unwrap().functions = vec![Function::MainSignal { has_distant: d, id: None }];
             None
         });
     }

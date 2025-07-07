@@ -56,7 +56,7 @@ pub fn inf_view(config :&Config,
     }
 }
 
-fn draw_inf(config :&Config, analysis :&Analysis, inf_view :&mut InfView, 
+fn draw_inf(config :&Config, analysis :&mut Analysis, inf_view :&mut InfView, 
             dispatch_view :&Option<DispatchView>,
             draw :&Draw, preview_route :Option<usize>) {
 
@@ -75,6 +75,9 @@ fn draw_inf(config :&Config, analysis :&Analysis, inf_view :&mut InfView,
     }
 
     if let Some(r) = preview_route { draw::route(config, analysis, inf_view, draw, r); }
+    
+    // 이름 입력 다이얼로그 표시
+    draw_id_input_dialog(analysis, inf_view);
 }
 
 fn scroll(inf_view :&mut InfView) { 
@@ -325,7 +328,7 @@ fn model_rename_object(model :&mut Model, a :PtA, b :PtA) {
 
 
 fn interact_insert(config :&Config, analysis :&mut Analysis, 
-                   inf_view :&InfView, draw :&Draw, obj :Option<Object>) {
+                   inf_view :&mut InfView, draw :&Draw, obj :Option<Object>) {
     unsafe {
         if let Some(mut obj) = obj {
             let moved = obj.move_to(analysis.model(),inf_view.view.screen_to_world_ptc(draw.mouse));
@@ -373,10 +376,20 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                    4.0);
             } else  {
                 if igIsMouseReleased(0) {
+                    // MainSignal인 경우 이름 입력 다이얼로그 표시
+                    if obj.functions.iter().any(|f| matches!(f, Function::MainSignal { .. })) {
+                        inf_view.id_input = Some(IdInputState {
+                            object: obj.clone(),
+                            id: String::new(),
+                            position: obj.loc,
+                        });
+                    } else {
+                        // MainSignal이 아닌 경우 바로 배치
                     analysis.edit_model(|m| {
                         m.objects.insert(round_coord(obj.loc), obj.clone());
                         None
                     });
+                    }
                 }
             }
         }
@@ -432,7 +445,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: false }],
+                        functions: vec![Function::MainSignal { has_distant: false, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -443,7 +457,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: true }],
+                        functions: vec![Function::MainSignal { has_distant: true, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -454,7 +469,8 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::ShiftingSignal { has_distant: false }],
+                        functions: vec![Function::ShiftingSignal { has_distant: false, id: None }],
+                        id: None,
                     }
                 ));
             }
@@ -466,6 +482,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
                         functions: vec![Function::Detector],
+                        id: None,
                     }
                 ));
             }
@@ -477,6 +494,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
                         functions: vec![Function::Switch],
+                        id: None,
                     }
                 ));
             }
@@ -553,11 +571,11 @@ fn toolbar_button(name :*const i8, selected :bool, enabled :bool) -> bool {
 fn get_current_object_icon(inf_view :&InfView) -> *const i8 {
     match &inf_view.action {
         Action::InsertObject(Some(obj)) => {
-            if obj.functions.contains(&Function::MainSignal { has_distant: false }) {
+            if obj.functions.iter().any(|f| matches!(f, Function::MainSignal { has_distant: false, .. })) {
                 const_cstr!("\u{f637}").as_ptr() // Home Signal
-            } else if obj.functions.contains(&Function::MainSignal { has_distant: true }) {
+            } else if obj.functions.iter().any(|f| matches!(f, Function::MainSignal { has_distant: true, .. })) {
                 const_cstr!("\u{f5b0}").as_ptr() // Departure Signal
-            } else if obj.functions.contains(&Function::ShiftingSignal { has_distant: false }) {
+            } else if obj.functions.iter().any(|f| matches!(f, Function::ShiftingSignal { has_distant: false, .. })) {
                 const_cstr!("\u{f061}").as_ptr() // Shunting Signal
             } else if obj.functions.contains(&Function::Detector) {
                 const_cstr!("\u{f715}").as_ptr() // Section Insulator
@@ -715,6 +733,98 @@ fn dispatch_view_ref(dispatch_view :&Option<DispatchView>) -> Option<DispatchRef
            Some((Err((*plan_idx, *dispatch_idx)), *time as _))
         },
         _ => { return None; },
+    }
+}
+
+fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
+    unsafe {
+        if let Some(ref mut id_input) = inf_view.id_input {
+            // 중앙에 다이얼로그 표시
+            let display_size = (*igGetIO()).DisplaySize;
+            igSetNextWindowPos(ImVec2 { x: display_size.x/2.0, y: display_size.y/2.0}, 
+                               ImGuiCond__ImGuiCond_Appearing as _, ImVec2 { x: 0.5, y: 0.5 });
+            igSetNextWindowSize(ImVec2 { x: 300.0, y: 150.0}, ImGuiCond__ImGuiCond_Appearing as _);
+            
+            let mut open = true;
+            let mut should_confirm = false;
+            let mut should_cancel = false;
+            
+            if igBegin(const_cstr!("Signal ID").as_ptr(), &mut open as _, 0 as _) {
+                widgets::show_text("Enter signal ID:");
+                
+                // ID 입력 필드
+                let mut id_buffer = id_input.id.clone().into_bytes();
+                id_buffer.push(0);
+                id_buffer.extend((0..50).map(|_| 0u8));
+                
+                if igInputText(const_cstr!("##id").as_ptr(), 
+                              id_buffer.as_mut_ptr() as *mut _, 
+                              id_buffer.len(),
+                              0 as _, None, std::ptr::null_mut()) {
+                    let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
+                    id_buffer.truncate(terminator);
+                    id_input.id = String::from_utf8_unchecked(id_buffer);
+                }
+                
+                igSpacing();
+                igSpacing();
+                
+                // 확인 버튼
+                if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    should_confirm = true;
+                }
+                
+                igSameLine(0.0, 10.0);
+                
+                // 취소 버튼
+                if igButton(const_cstr!("Cancel").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    should_cancel = true;
+                }
+                
+                // Enter 키로 확인, Escape 키로 취소
+                if igIsKeyPressed(13 as _, false) { // Enter
+                    should_confirm = true;
+                }
+                
+                if igIsKeyPressed(27 as _, false) { // Escape
+                    should_cancel = true;
+                }
+            }
+            igEnd();
+            
+            if !open {
+                should_cancel = true;
+            }
+            
+            // 다이얼로그가 닫힌 후 처리
+            if should_confirm {
+                // 데이터를 복사해서 처리
+                let mut object = id_input.object.clone();
+                let id = id_input.id.clone();
+                let position = id_input.position;
+                
+                // 이름을 Function에 설정
+                if let Some(Function::MainSignal { has_distant, .. }) = object.functions.first() {
+                    let new_function = Function::MainSignal { 
+                        has_distant: *has_distant, 
+                        id: Some(id) 
+                    };
+                    object.functions = vec![new_function];
+                }
+                
+                // Object를 모델에 추가
+                analysis.edit_model(|m| {
+                    m.objects.insert(round_coord(position), object);
+                    None
+                });
+                
+                // ID 입력 상태 초기화
+                inf_view.id_input = None;
+            } else if should_cancel {
+                // ID 입력 상태 초기화
+                inf_view.id_input = None;
+            }
+        }
     }
 }
 

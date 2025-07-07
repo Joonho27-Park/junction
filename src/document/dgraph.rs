@@ -99,7 +99,7 @@ impl DGraphBuilder {
                             detector_ids.insert(a,id);
                             detector_ids.insert(b,id);
                         },
-                        Function::MainSignal { has_distant }=> { 
+                        Function::MainSignal { has_distant, id: _ }=> { 
                             let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
                             signal_cursors.insert(id,c); 
 
@@ -108,7 +108,7 @@ impl DGraphBuilder {
                             static_signals.insert(id, obj);
                             object_ids.insert(obj, id);
                         },
-                        Function::ShiftingSignal { has_distant }=> { 
+                        Function::ShiftingSignal { has_distant, id: _ }=> { 
                             let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
                             signal_cursors.insert(id,c); 
 
