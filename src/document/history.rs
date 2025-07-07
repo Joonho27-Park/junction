@@ -63,6 +63,14 @@ pub fn get_history<'a>(vehicles :&[(usize,Vehicle)],
                     route_refs.push((*t as f32, *route_idx));
                 }
             },
+            Command::Signal(signal_id, state) => {
+                // Signal 명령 처리
+                dispatch.push(DispatchAction::Signal(*signal_id, *state));
+            },
+            Command::Switch(switch_id, position) => {
+                // Switch 명령 처리
+                dispatch.push(DispatchAction::Switch(*switch_id, *position));
+            },
         }
     }
 

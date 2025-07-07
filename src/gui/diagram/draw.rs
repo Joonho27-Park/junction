@@ -1,9 +1,11 @@
 use const_cstr::*;
 use matches::matches;
 use backend_glfw::imgui::*;
+use nalgebra_glm as glm;
 
 use crate::config::*;
 use crate::app::*;
+use crate::document::dgraph::DGraph;
 use crate::gui::widgets;
 use crate::gui::widgets::Draw;
 use crate::document::dispatch::*;
@@ -171,16 +173,34 @@ pub fn command_icons(config :&Config,
 
     let mut prev_y = -std::f32::INFINITY;
     for (cmd_idx,(cmd_id,(cmd_t,cmd))) in dispatch.commands.iter().enumerate() {
-        let route_idx = match cmd { Command::Route(routespec) | Command::Train(_,routespec) => {
-            il.find_route(routespec) }};
-
-        let fill_color = match (cmd,route_idx) {
-            (_,None) =>                 config.color_u32(RailUIColorName::GraphCommandError),
-            (Command::Route(_),_) =>    config.color_u32(RailUIColorName::GraphCommandRoute),
-            (Command::Train(_,_),_) =>  config.color_u32(RailUIColorName::GraphCommandTrain),
+        let route_idx = match cmd { 
+            Command::Route(routespec) | Command::Train(_,routespec) => {
+                il.find_route(routespec) 
+            },
+            Command::Signal(_,_) | Command::Switch(_,_) => {
+                None // Signal과 Switch는 route와 관련이 없으므로 None
+            }
         };
 
-        let km = route_idx.and_then(|r| dgraph.mileage.get(&il.routes[*r].start_node())).cloned().unwrap_or(0.0);
+        let fill_color = match (cmd,route_idx) {
+            (Command::Route(_) | Command::Train(_,_), None) => config.color_u32(RailUIColorName::GraphCommandError),
+            (Command::Route(_),_) =>                           config.color_u32(RailUIColorName::GraphCommandRoute),
+            (Command::Train(_,_),_) =>                         config.color_u32(RailUIColorName::GraphCommandTrain),
+            (Command::Signal(_,_),_) =>                        config.color_u32(RailUIColorName::GraphCommandRoute),
+            (Command::Switch(_,_),_) =>                        config.color_u32(RailUIColorName::GraphCommandRoute),
+        };
+
+        let km = match cmd {
+            Command::Route(routespec) | Command::Train(_,routespec) => {
+                route_idx.and_then(|r| dgraph.mileage.get(&il.routes[*r].start_node())).cloned()
+            }
+            Command::Signal(object_id, _) | Command::Switch(object_id, _) => {
+                let pta = dgraph.object_ids.get_by_left(object_id);
+                pta.and_then(|pta| find_object_km(dgraph, pta))
+                // TODO km값 이상하게 들어감
+            }
+        };
+        let km = km.unwrap_or(0.0);
 
         unsafe {
             let half_icon_size = ImVec2 { x: 8.0, y: 8.0 };
@@ -205,7 +225,7 @@ pub fn command_icons(config :&Config,
 
                 igBeginTooltip();
                 match (cmd, route_idx) {
-                    (_,None) => {
+                    (Command::Route(_) | Command::Train(_,_) ,None) => {
                         widgets::show_text(&format!("Invalid route start/end points."));
                     }
                     (Command::Route(_),_) => {
@@ -215,6 +235,14 @@ pub fn command_icons(config :&Config,
                         let v = analysis.model().vehicles.get(*v).map(|v| v.name.as_str())
                             .unwrap_or("Unknown vehicle");
                         widgets::show_text(&format!("{} entering t={:.1}", v, cmd_t));
+                    },
+                    (Command::Signal(signal_id, state),_) => {
+                        let state_text = if *state { "proceed" } else { "stop" };
+                        widgets::show_text(&format!("Signal {} {} t={:.1}", signal_id, state_text, cmd_t));
+                    },
+                    (Command::Switch(switch_id, position),_) => {
+                        let pos_text = if *position { "on" } else { "off" };
+                        widgets::show_text(&format!("Switch {} to {} t={:.1}", switch_id, pos_text, cmd_t));
                     },
                 }
                 igEndTooltip();
@@ -270,3 +298,32 @@ pub fn draw_interpolate(draw_list :*mut ImDrawList, p0 :ImVec2, y1 :ImVec2, y2 :
     }
 }
 
+// TODO 제대로 작동 안함
+// pta: &PtA (오브젝트 좌표)
+fn find_object_km(dgraph: &DGraph, pta: &PtA) -> Option<f64> {
+    let pta_f = glm::vec2(pta.x as f32, pta.y as f32);
+    let mut min_dist = std::f32::MAX;
+    let mut best = None;
+    for ((a, b), points) in &dgraph.edge_lines {
+        for win in points.windows(2) {
+            let (p1, p2) = (win[0], win[1]);
+            let v = p2 - p1;
+            let w = pta_f - p1;
+            let t = (w.dot(&v) / v.dot(&v)).clamp(0.0, 1.0);
+            //println!("t value: {:?}", t);
+            let proj = p1 + v * t;
+            let dist = glm::distance(&pta_f, &proj);
+            if dist < min_dist {
+                min_dist = dist;
+                best = Some((a, b, t));
+            }
+        }
+    }
+    if let Some((a, b, t)) = best {
+        let km_a = dgraph.mileage.get(a)?;
+        let km_b = dgraph.mileage.get(b)?;
+        Some((*km_a as f32 + ((*km_b - *km_a) as f32) * t) as f64)
+    } else {
+        None
+    }
+}

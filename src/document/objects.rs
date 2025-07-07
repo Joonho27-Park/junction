@@ -76,7 +76,10 @@ impl Object {
                 let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                     1.0 } else { -1.0 };
                 let offset = 0.5*normal*factor;
-                let place_pos = pt_on_line + offset;
+                let place_pos = glm::vec2(
+                    pt_on_line.x.round() + offset.x,
+                    pt_on_line.y.round() + offset.y
+                );
                 let mut found = false;
                 
                 // topology에서 NDType::Sw 노드들을 찾아서 검사

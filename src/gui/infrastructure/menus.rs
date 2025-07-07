@@ -130,6 +130,58 @@ pub fn route_selector(analysis :&mut Analysis, dispatch_view :&Option<DispatchVi
         let mut some = false;
         let mut action = None;
         igIndent(14.0);
+        
+        // Signal과 Switch 명령 추가
+        if let Ref::Object(pta) = thing {
+            if let Some(obj) = analysis.model().objects.get(&pta) {
+                // dgraph에서 object ID 찾기
+                let dgraph = &analysis.data().dgraph.as_ref()?.1;
+                let object_id = dgraph.object_ids.get_by_right(&pta);
+                
+                for function in &obj.functions {
+                    match function {
+                        Function::MainSignal { .. } | Function::ShiftingSignal { .. } => {
+                            // Signal 명령 메뉴
+                            if igBeginMenu(const_cstr!("Signal commands").as_ptr(), true) {
+                                if let Some(rolling_id) = object_id {
+                                    if igSelectable(const_cstr!("Set to proceed").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                                        action = Some(Command::Signal(*rolling_id, true));
+                                    }
+                                    if igSelectable(const_cstr!("Set to stop").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                                        action = Some(Command::Signal(*rolling_id, false));
+                                    }
+                                } else {
+                                    widgets::show_text("Signal not found in infrastructure");
+                                }
+                                igEndMenu();
+                            }
+                            some = true;
+                        },
+                        /*
+                        Function::Switch => {
+                            // Switch 명령 메뉴
+                            if igBeginMenu(const_cstr!("Switch commands").as_ptr(), true) {
+                                if let Some(rolling_id) = object_id {
+                                    if igSelectable(const_cstr!("Set to left").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                                        action = Some(Command::Switch(*rolling_id, true));
+                                    }
+                                    if igSelectable(const_cstr!("Set to right").as_ptr(), false, 0 as _, ImVec2::zero()) {
+                                        action = Some(Command::Switch(*rolling_id, false));
+                                    }
+                                } else {
+                                    widgets::show_text("Switch not found in infrastructure");
+                                }
+                                igEndMenu();
+                            }
+                            some = true;
+                        },*/
+                        _ => {}
+                    }
+                }
+            }
+        }
+        
+        // 기존 Route 명령들
         for idx in routes {
             some = true;
             igPushIDInt(*idx as _);

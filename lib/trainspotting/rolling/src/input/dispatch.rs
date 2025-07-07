@@ -13,6 +13,8 @@ pub enum DispatchAction<RouteRef> {
     Wait(Option<f64>),
     Route(RouteRef),
     Train(TrainName, TrainParams, RouteRef), // train name, train params, entry route name
+    Signal(usize, bool), // signal object id, state (true=proceed, false=stop)
+    Switch(usize, bool), // switch object id, position (true=left, false=right)
 }
 
 

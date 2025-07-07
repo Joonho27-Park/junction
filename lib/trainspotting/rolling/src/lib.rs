@@ -102,7 +102,6 @@ pub fn evaluate_plan<RouteRef : Hash + Eq + Debug + Clone >
 
                         match route.entry {
                             staticinfrastructure::RouteEntryExit::Boundary(Some(id)) => {
-
                                 let activated = sim.start_process(Box::new(
                                     railway::route::ActivateRoute::new(route.clone(),
                                     conflict_events)));
@@ -128,7 +127,37 @@ pub fn evaluate_plan<RouteRef : Hash + Eq + Debug + Clone >
                     railway::driver::Driver::new(&mut sim, train_id, activated, node_idx, auth_dist, 
                           *params, logger, timestep));
                 sim.start_process(driver);
-            }
+            },
+            Signal(signal_id, state) => {
+                // Signal 상태 변경 처리
+                match sim.world.state[signal_id] {
+                    railway::infrastructure::ObjectState::Signal { ref mut authority } => {
+                        let auth = if state { 
+                            (Some(1000.0), None) // proceed with authority
+                        } else { 
+                            (None, None) // stop
+                        };
+                        authority.set(&mut sim.scheduler, auth);
+                        (sim.world.logger)(output::history::InfrastructureLogEvent::Authority(signal_id, auth));
+                    },
+                    _ => panic!("Object {} is not a signal", signal_id),
+                }
+            },
+            Switch(switch_id, switch_position) => {
+                // Switch 위치 변경 처리
+                match sim.world.state[switch_id] {
+                    railway::infrastructure::ObjectState::Switch { ref mut position, .. } => {
+                        let new_pos = if switch_position { 
+                            input::staticinfrastructure::SwitchPosition::Left 
+                        } else { 
+                            input::staticinfrastructure::SwitchPosition::Right 
+                        };
+                        position.set(&mut sim.scheduler, Some(new_pos));
+                        // TODO: Add switch position change event to logger
+                    },
+                    _ => panic!("Object {} is not a switch", switch_id),
+                }
+            },
         }
     }
 

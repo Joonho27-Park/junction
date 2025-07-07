@@ -132,6 +132,8 @@ pub struct RouteSpec {
 pub enum Command {
     Train(usize, RouteSpec),
     Route(RouteSpec),
+    Signal(usize, bool),
+    Switch(usize, bool),
 }
 
 pub type Commands = Vec<(usize,(f64,Command))>;

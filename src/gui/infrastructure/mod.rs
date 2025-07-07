@@ -277,6 +277,7 @@ fn model_rename_node(model :&mut Model, a :Pt, b :Pt) {
                         r.to = Ref::Node(b);
                     }
                 }
+                _ => {}
             };
         }
     }
@@ -306,6 +307,7 @@ fn model_rename_object(model :&mut Model, a :PtA, b :PtA) {
                         r.to = Ref::Object(b);
                     }
                 }
+                _ => {}
             };
         }
     }
