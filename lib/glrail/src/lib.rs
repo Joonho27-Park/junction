@@ -5,6 +5,7 @@ pub mod command_builder;
 pub mod wake;
 pub use crate::wake::wake;
 pub mod background;
+pub mod colors;
 
 // TODO separate domain model, view model
 
