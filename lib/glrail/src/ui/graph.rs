@@ -9,6 +9,7 @@ use crate::infrastructure::*;
 use crate::selection::*;
 use crate::dgraph::*;
 use crate::command_builder::*;
+use crate::colors::*;
 use std::ptr;
 use std::ffi::CString;
 use const_cstr::const_cstr;
@@ -16,12 +17,12 @@ use const_cstr::const_cstr;
 use imgui_sys_bindgen::sys::ImVec2;
 
 pub fn graph(size: ImVec2, app :&mut App) -> bool {
-        let canvas_bg = 60 + (60<<8) + (60<<16) + (255<<24);
-    let line_col  = 208 + (208<<8) + (175<<16) + (255<<24);
-    let tvd_col  = 175 + (255<<8) + (175<<16) + (255<<24);
-    let selected_col  = 175 + (175<<8) + (255<<16) + (255<<24);
-    let line_hover_col  = 255 + (50<<8) + (50<<16) + (255<<24);
-    // TODO make some colors config struct
+    // 색상 변수들을 colors 모듈에서 가져옴
+    let canvas_bg = CANVAS_BG;
+    let line_col = LINE_COL;
+    let tvd_col = TVD_COL;
+    let selected_col = SELECTED_COL;
+    let line_hover_col = LINE_HOVER_COL;
 
     unsafe {
 

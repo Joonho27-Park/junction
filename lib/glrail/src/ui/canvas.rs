@@ -10,6 +10,7 @@ use crate::dgraph::*;
 use crate::command_builder::*;
 use crate::view::*;
 use crate::graph::*;
+use crate::colors::*;
 use std::ptr;
 use std::ffi::CString;
 use const_cstr::const_cstr;
@@ -68,17 +69,16 @@ pub fn dist2(a :&ImVec2, b :&ImVec2) -> f32 {
 pub fn canvas(mainmain_size: ImVec2, app :&mut App) -> bool {
     let v2_0 = ImVec2 { x: 0.0, y: 0.0 };
 
-        let canvas_bg = 60 + (60<<8) + (60<<16) + (255<<24);
-    let line_col  = 208 + (208<<8) + (175<<16) + (255<<24);
-    let tvd_col  = 175 + (255<<8) + (175<<16) + (255<<24);
-    let selected_col  = 175 + (175<<8) + (255<<16) + (255<<24);
-    let white  = 255 + (255<<8) + (255<<16) + (255<<24);
-    let line_hover_col  = 255 + (50<<8) + (50<<16) + (255<<24);
-    // TODO make some colors config struct
-
-    let occupied_col  = 255 + (65<<8) + (55<<16) + (255<<24);
-    let reserved_col  = 55 + (255<<8) + (55<<16) + (255<<24);
-    let overlap_col  = 209 + (208<<8) + (22<<16) + (255<<24);
+    // 색상 변수들을 colors 모듈에서 가져옴
+    let canvas_bg = CANVAS_BG;
+    let line_col = LINE_COL;
+    let tvd_col = TVD_COL;
+    let selected_col = SELECTED_COL;
+    let white = WHITE;
+    let line_hover_col = LINE_HOVER_COL;
+    let occupied_col = OCCUPIED_COL;
+    let reserved_col = RESERVED_COL;
+    let overlap_col = OVERLAP_COL;
 
     unsafe {
 
