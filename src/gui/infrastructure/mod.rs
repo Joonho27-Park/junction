@@ -138,7 +138,7 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
                                 inf_view.view.screen_to_world_ptc(ImVec2 { x:0.0, y: 0.0 });
                     match typ {
                         MoveType::Continuous => { if delta.x != 0.0 || delta.y != 0.0 {
-                            move_selected_objects(analysis, inf_view, delta); }},
+                            move_selected_objects(analysis, inf_view, inf_view.view.screen_to_world_ptc((*io).MousePos) + glm::vec2(0.0,1.5)); }},
                         MoveType::Grid(p) => {
                             inf_view.action = 
                                 Action::Normal(NormalState::DragMove(MoveType::Grid(p + delta)));
@@ -188,13 +188,14 @@ pub fn set_selection_window(inf_view :&mut InfView, analysis :&Analysis, a :ImVe
     inf_view.selection = s;
 }
 
-pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, delta :PtC) {
+pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, to :PtC) {
     let mut model = analysis.model().clone();
     let mut changed_ptas = Vec::new();
     for id in inf_view.selection.iter() {
         match id {
             Ref::Object(pta) => {
                 let mut obj = model.objects.get_mut(pta).unwrap().clone();
+                println!("to: {:?}", to);
                 let moved = obj.move_to(&model, to);
                 if let Some(_) = moved { return; }
                 let new_pta = round_coord(obj.loc);
