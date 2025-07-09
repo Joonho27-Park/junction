@@ -239,42 +239,51 @@ pub fn default_colors() -> EnumMap<RailUIColorName, Color> {
         let a :Color = f.into();
         a
     };
+    
+    // 커스텀 색상 정의 함수 (RGBA)
+    let custom_color_rgba = |r: u8, g: u8, b: u8, a: u8| {
+        let f = palette::Srgb::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
+        let mut color: Color = f.into();
+        color.alpha = a as f32 / 255.0;
+        color
+    };
+    
     enum_map! {
-        RailUIColorName::CanvasBackground => c(named::CORNSILK),
-        RailUIColorName::CanvasGridPoint => c(named::BLANCHEDALMOND),
-        RailUIColorName::CanvasSymbol => c(named::INDIGO),
-        RailUIColorName::CanvasSymbolSelected => c(named::NAVY),
-        RailUIColorName::CanvasSymbolLocError => c(named::ORANGERED),
-        RailUIColorName::CanvasSignalStop => c(named::RED),
-        RailUIColorName::CanvasSignalProceed => c(named::LIME),
-        RailUIColorName::CanvasDetector => c(named::CORNSILK),
-        RailUIColorName::CanvasTrack => c(named::DARKSLATEBLUE),
-        RailUIColorName::CanvasTrackDrawing => c(named::GOLDENROD),
-        RailUIColorName::CanvasTrackSelected => c(named::NAVY),
-        RailUIColorName::CanvasNode => c(named::BLACK),
-        RailUIColorName::CanvasNodeSelected => c(named::NAVY),
-        RailUIColorName::CanvasNodeError => c(named::RED),
-        RailUIColorName::CanvasTrain => c(named::TOMATO),
-        RailUIColorName::CanvasTrainSight => c(named::ORANGE),
-        RailUIColorName::CanvasTVDFree => c(named::BLACK),
-        RailUIColorName::CanvasTVDOccupied => c(named::SALMON),
-        RailUIColorName::CanvasTVDReserved => c(named::SLATEBLUE),
-        RailUIColorName::CanvasRoutePath => c(named::DARKSLATEBLUE),
-        RailUIColorName::CanvasRouteSection => c(named::SLATEBLUE),
-        RailUIColorName::CanvasSelectionWindow => c(named::NAVY),
-        RailUIColorName::CanvasText => c(named::BLACK),
-        RailUIColorName::GraphBackground => c(named::HONEYDEW),
-        RailUIColorName::GraphTimeSlider => c(named::LIGHTSALMON),
-        RailUIColorName::GraphTimeSliderText => c(named::DARKGREY),
-        RailUIColorName::GraphBlockBorder => c(named::IVORY),
-        RailUIColorName::GraphBlockReserved => c(named::LIGHTSKYBLUE),
-        RailUIColorName::GraphBlockOccupied => c(named::LIGHTPINK),
-        RailUIColorName::GraphTrainFront => c(named::TOMATO),
-        RailUIColorName::GraphTrainRear => c(named::TOMATO),
-        RailUIColorName::GraphCommandRoute => c(named::LIMEGREEN),
-        RailUIColorName::GraphCommandTrain => c(named::AZURE),
-        RailUIColorName::GraphCommandError => c(named::RED),
-        RailUIColorName::GraphCommandBorder => c(named::BLACK),
+        RailUIColorName::CanvasBackground => custom_color_rgba(0xFC, 0xF3, 0xD8, 0xFF),      // #FCF3D8
+        RailUIColorName::CanvasGridPoint => custom_color_rgba(0xFF, 0xB7, 0x82, 0x50),       // #FFB78250
+        RailUIColorName::CanvasSymbol => custom_color_rgba(0x44, 0x47, 0x5A, 0xFF),          // #44475A
+        RailUIColorName::CanvasSymbolSelected => custom_color_rgba(0xA2, 0xAE, 0xD6, 0xFF),   // #A2AED6
+        RailUIColorName::CanvasSymbolLocError => custom_color_rgba(0xFF, 0x55, 0x55, 0xFF),   // #FF5555
+        RailUIColorName::CanvasSignalStop => custom_color_rgba(0xFF, 0x55, 0x55, 0xC8),       // #FF5555C8
+        RailUIColorName::CanvasSignalProceed => custom_color_rgba(0x49, 0xE9, 0xA6, 0xC8),    // #49E9A6C8
+        RailUIColorName::CanvasDetector => custom_color_rgba(0xFC, 0xF3, 0xD8, 0xFF),         // #FCF3D8
+        RailUIColorName::CanvasTrack => custom_color_rgba(0x28, 0x2A, 0x36, 0xFF),            // #282A36
+        RailUIColorName::CanvasTrackDrawing => custom_color_rgba(0x28, 0x2A, 0x36, 0xC8),     // #282A36C8
+        RailUIColorName::CanvasTrackSelected => custom_color_rgba(0xA1, 0xAE, 0xD6, 0xFF),     // #A1AED6
+        RailUIColorName::CanvasNode => custom_color_rgba(0x28, 0x2A, 0x36, 0xFF),             // #282A36
+        RailUIColorName::CanvasNodeSelected => custom_color_rgba(0xA2, 0xAE, 0xD6, 0xFF),      // #A2AED6
+        RailUIColorName::CanvasNodeError => custom_color_rgba(0xFF, 0x55, 0x55, 0xFF),         // #FF5555
+        RailUIColorName::CanvasTrain => custom_color_rgba(0xFF, 0x7E, 0xAC, 0x96),            // #FF7EAC96
+        RailUIColorName::CanvasTrainSight => custom_color_rgba(0x44, 0x47, 0x5A, 0xA7),       // #44475AA7
+        RailUIColorName::CanvasTVDFree => custom_color_rgba(0xF8, 0xF8, 0xF2, 0xFF),          // #F8F8F2
+        RailUIColorName::CanvasTVDOccupied => custom_color_rgba(0xFF, 0x55, 0x55, 0x82),      // #FF555582
+        RailUIColorName::CanvasTVDReserved => custom_color_rgba(0xFF, 0xE5, 0x00, 0xC8),      // #FFE500C8
+        RailUIColorName::CanvasRoutePath => custom_color_rgba(0x55, 0xFA, 0x7B, 0x82),        // #55FA7B82
+        RailUIColorName::CanvasRouteSection => custom_color_rgba(0x8B, 0xE9, 0xFD, 0x82),     // #8BE9FD82
+        RailUIColorName::CanvasSelectionWindow => custom_color_rgba(0x62, 0x72, 0xA4, 0xFF),   // #6272A4
+        RailUIColorName::CanvasText => custom_color_rgba(0xF8, 0xF8, 0xF2, 0xFF),             // #F8F8F2
+        RailUIColorName::GraphBackground => custom_color_rgba(0x3F, 0x3F, 0x3F, 0xFF),         // #3F3F3F
+        RailUIColorName::GraphTimeSlider => custom_color_rgba(0x84, 0xAB, 0xB5, 0xFF),         // #84ABB5
+        RailUIColorName::GraphTimeSliderText => custom_color_rgba(0xB9, 0xD4, 0xDA, 0xFF),     // #B9D4DA
+        RailUIColorName::GraphBlockBorder => custom_color_rgba(0x00, 0x00, 0x00, 0xFF),        // #000000
+        RailUIColorName::GraphBlockReserved => custom_color_rgba(0x53, 0x53, 0x53, 0xFF),      // #535353
+        RailUIColorName::GraphBlockOccupied => custom_color_rgba(0x61, 0x61, 0x61, 0xFF),      // #616161
+        RailUIColorName::GraphTrainFront => custom_color_rgba(0xFF, 0xFE, 0xFE, 0xCC),        // #FFFEFECC
+        RailUIColorName::GraphTrainRear => custom_color_rgba(0xFF, 0xFE, 0xFE, 0xCC),          // #FFFEFECC
+        RailUIColorName::GraphCommandRoute => custom_color_rgba(0x16, 0xB6, 0x73, 0xFF),      // #16B673
+        RailUIColorName::GraphCommandTrain => custom_color_rgba(0xFF, 0x8B, 0xB3, 0xCC),      // #FF8BB3CC
+        RailUIColorName::GraphCommandError => custom_color_rgba(0xE6, 0x41, 0x00, 0xFF),      // #E64100
+        RailUIColorName::GraphCommandBorder => custom_color_rgba(0xFF, 0xFF, 0xFF, 0x00),     // #FFFFFF00
     }
 }
 

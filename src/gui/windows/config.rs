@@ -35,6 +35,14 @@ pub fn edit_config_window(popen :&mut bool, config :&mut Config) {
                         let s = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/light.toml"));
                         import_string(config, s);
                     }
+                    if igMenuItemBool(const_cstr!("Junction-dracular").as_ptr(), std::ptr::null(), false, true) {
+                        let s = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/dracular.toml"));
+                        import_string(config, s);
+                    }
+                    if igMenuItemBool(const_cstr!("Junction-sehwa").as_ptr(), std::ptr::null(), false, true) {
+                        let s = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/themes/sehwa.toml"));
+                        import_string(config, s);
+                    }
 
                     widgets::sep();
 

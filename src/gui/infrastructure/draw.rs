@@ -238,7 +238,7 @@ pub fn route(config :&Config, analysis :&Analysis, inf_view :&InfView, draw :&Dr
                             ImDrawList_AddLine(draw.draw_list,
                                                draw.pos + inf_view.view.world_ptc_to_screen(*pt_a),
                                                draw.pos + inf_view.view.world_ptc_to_screen(*pt_b),
-                                               color_section, 2.0*7.0);
+                                               color_section, 2.0*3.0); // 갈 수 있는 경로 두께. 하늘색
                         }
                     }
                 }
@@ -251,7 +251,7 @@ pub fn route(config :&Config, analysis :&Analysis, inf_view :&InfView, draw :&Dr
                     ImDrawList_AddLine(draw.draw_list,
                                        draw.pos + inf_view.view.world_ptc_to_screen(*pt_a),
                                        draw.pos + inf_view.view.world_ptc_to_screen(*pt_b),
-                                       color_path, 2.0*10.0);
+                                       color_path, 2.0*5.0); // 실제 경로 두께. 초록색
                 }
             }
         }
@@ -304,13 +304,8 @@ pub fn state(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Draw
                 ImDrawList_AddLine(draw.draw_list,
                                    draw.pos + inf_view.view.world_ptc_to_screen(*p1),
                                    draw.pos + inf_view.view.world_ptc_to_screen(*p2),
-                                   color, 2.0*4.0);
+                                   color, 2.0*2.0); // 갈예정(노란색), 차지하고 있는 궤도(빨간색
             }
         }
     }
 }
-
-
-
-
-
