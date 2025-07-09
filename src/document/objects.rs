@@ -32,6 +32,9 @@ pub enum Function { MainSignal { has_distant :bool, id: Option<String> }, Detect
 //이곳에서 object의 속성 추가
 pub enum ObjectState { SignalStop, SignalProceed, DistantStop, DistantProceed }
 
+pub const SIGNAL_OFFSET: f32 = 0.35;
+pub const SWITCH_OFFSET: f32 = 0.5;
+
 impl Object {
     pub fn move_to(&mut self, model :&Model, pt :PtC) -> Option<()> {
         if let Some((l,_param,(d1,d2))) = model.get_closest_lineseg(pt) {
@@ -47,7 +50,7 @@ impl Object {
                     // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
                     let normal_len = glm::length(&normal);
                     let n = if normal_len > 0.0 { normal / normal_len } else { normal };
-                    let offset = 0.35 * n * factor;
+                    let offset = SIGNAL_OFFSET * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
                         pt_on_line.x.round(),
@@ -64,7 +67,7 @@ impl Object {
                     // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
                     let normal_len = glm::length(&normal);
                     let n = if normal_len > 0.0 { normal / normal_len } else { normal };
-                    let offset = 0.35 * n * factor;
+                    let offset = SIGNAL_OFFSET * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
                         pt_on_line.x.round(),
@@ -84,8 +87,11 @@ impl Object {
                 // Switch는 NDType::Sw(side) 노드의 normal 방향 offset 위치와 가까울 때만 배치 가능
                 let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                     1.0 } else { -1.0 };
-                let offset = 0.5*normal*factor;
-                let place_pos = pt_on_line + offset;
+                let offset = SWITCH_OFFSET*normal*factor;
+                let place_pos = glm::vec2(
+                    pt_on_line.x.round() + offset.x,
+                    pt_on_line.y.round() + offset.y
+                );
                 let mut found = false;
                 
                 // topology에서 NDType::Sw 노드들을 찾아서 검사

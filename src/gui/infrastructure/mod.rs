@@ -195,7 +195,8 @@ pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, de
         match id {
             Ref::Object(pta) => {
                 let mut obj = model.objects.get_mut(pta).unwrap().clone();
-                obj.move_to(&model, obj.loc + delta);
+                let moved = obj.move_to(&model, to);
+                if let Some(_) = moved { return; }
                 let new_pta = round_coord(obj.loc);
                 model.objects.remove(pta);
                 model.objects.insert(new_pta,obj);
@@ -280,6 +281,7 @@ fn model_rename_node(model :&mut Model, a :Pt, b :Pt) {
                         r.to = Ref::Node(b);
                     }
                 }
+                _ => {}
             };
         }
     }
@@ -309,6 +311,7 @@ fn model_rename_object(model :&mut Model, a :PtA, b :PtA) {
                         r.to = Ref::Object(b);
                     }
                 }
+                _ => {}
             };
         }
     }
