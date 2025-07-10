@@ -53,6 +53,15 @@ pub fn edit_plan(config :&Config,
         igSameLine(0.0,-1.0);
         plan_dispatches(config, analysis, auto_dispatch);
 
+        let avail = igGetContentRegionAvail().x;
+        if avail > 30.0 {
+            let cur = igGetCursorPos().x;
+            igSetCursorPosX(cur + avail - 24.0);
+        }
+        if igButton(const_cstr!("\u{f00d}").as_ptr(), ImVec2::zero()) {
+            return Some(None);
+        }
+
         widgets::sep();
 
         let mut positions :Vec<ImVec2> = Vec::new();

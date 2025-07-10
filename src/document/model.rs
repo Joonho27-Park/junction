@@ -220,6 +220,37 @@ pub struct ShortGenList<T> {
 #[derive(Serialize,Deserialize)]
 pub struct ImShortGenList<T>(Arc<ShortGenList<T>>);
 
+pub fn generate_unique_dispatch_name(dispatches: &ImShortGenList<Dispatch>) -> String {
+        let mut used_numbers = std::collections::HashSet::new();
+        for (_id, d) in dispatches.iter() {
+            if let Some(stripped) = d.name.strip_prefix("Dispatch ") {
+                if let Ok(n) = stripped.parse::<usize>() {
+                    used_numbers.insert(n);
+                }
+            }
+        }
+        let mut n = 1;
+        while used_numbers.contains(&n) {
+            n += 1;
+        }
+        format!("Dispatch {}", n)
+}
+pub fn generate_unique_plan_name(plans: &ImShortGenList<PlanSpec>) -> String {
+    let mut used_numbers = std::collections::HashSet::new();
+    for (_id, p) in plans.iter() {
+        if let Some(stripped) = p.name.strip_prefix("Plan ") {
+            if let Ok(n) = stripped.parse::<usize>() {
+                used_numbers.insert(n);
+            }
+        }
+    }
+    let mut n = 1;
+    while used_numbers.contains(&n) {
+        n += 1;
+    }
+    format!("Plan {}", n)
+}
+
 impl<T :Clone> ImShortGenList<T> {
     pub fn next_id(&self) -> usize {
         self.0.generation

@@ -20,7 +20,7 @@ use crate::document::objects::*;
 use crate::gui::widgets;
 use crate::gui::widgets::Draw;
 use crate::config::RailUIColorName;
-
+use crate::document::model::generate_unique_dispatch_name;
 
 #[derive(Copy,Clone,Debug)]
 pub enum Highlight {
@@ -167,6 +167,13 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
                         inf_view.action = Action::Normal(NormalState::SelectWindow(a));
                     }
                 } else {
+                    if igIsMouseReleased(0) {
+                        if inf_view.restore_insert_object {
+                            inf_view.action = Action::InsertObject(None);
+                            inf_view.restore_insert_object = false;
+                            return;
+                        }
+                    }
                     if igIsItemHovered(0) && igIsMouseReleased(0) {
                         if !(*io).KeyShift { inf_view.selection.clear(); }
                         if let Some((r,_)) = analysis.get_closest(
@@ -223,9 +230,16 @@ fn interact_drawing(config :&Config, analysis :&mut Analysis, inf_view :&mut Inf
                     draw :&Draw, from :Option<Pt>) {
     unsafe {
         let color = config.color_u32(RailUIColorName::CanvasTrackDrawing);
-        let pt_end = inf_view.view.screen_to_world_pt(draw.mouse);
+        let pt_end_raw = inf_view.view.screen_to_world_pt(draw.mouse);
+        let pt_end = util::clamp_pt(pt_end_raw);
+
+        if pt_end_raw.x.abs() > 10_000 || pt_end_raw.y.abs() > 10_000 {
+            inf_view.action = Action::DrawingLine(None);
+            return;
+        }
         // Draw preview
         if let Some(pt) = from {
+            let pt = util::clamp_pt(pt);
             for (p1,p2) in util::route_line(pt, pt_end) {
                 ImDrawList_AddLine(draw.draw_list, draw.pos + inf_view.view.world_pt_to_screen(p1),
                                                    draw.pos + inf_view.view.world_pt_to_screen(p2),
@@ -334,6 +348,12 @@ fn model_rename_object(model :&mut Model, a :PtA, b :PtA) {
 fn interact_insert(config :&Config, analysis :&mut Analysis, 
                    inf_view :&mut InfView, draw :&Draw, obj :Option<Object>) {
     unsafe {
+        let io = igGetIO();
+        if igIsMouseClicked(1, false) {
+            inf_view.action = Action::Normal(NormalState::Default);
+            inf_view.restore_insert_object = true; // ← Insert Object 복귀 예약
+            return;
+        }
         if let Some(mut obj) = obj {
             let moved = obj.move_to(analysis.model(),inf_view.view.screen_to_world_ptc(draw.mouse));
             /*
@@ -711,7 +731,7 @@ fn start_route(analysis :&mut Analysis, dispatch_view :&mut Option<DispatchView>
     let (dispatch_idx,time) = match &dispatch_view {
         Some(DispatchView::Manual(m)) => (m.dispatch_idx, m.time),
         None | Some(DispatchView::Auto(_)) => {
-            let name = format!("Dispatch {}", model.dispatches.next_id()+1);
+            let name = generate_unique_dispatch_name(&model.dispatches);
             let dispatch_idx = model.dispatches.insert(Dispatch::new_empty(name));
             let time = 0.0;
 

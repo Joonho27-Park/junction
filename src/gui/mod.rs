@@ -45,7 +45,9 @@ pub fn main(app :&mut App) -> bool {
                 let framespace = igGetFrameHeightWithSpacing() - frameh;
                 igSetCursorPos(pos + ImVec2 { x: 2.0*framespace, y : -frameh-3.0*framespace });
                 let new_dispatchview = dispatch::dispatch_select_bar(config, &None, analysis);
-                if let Some(nd) = new_dispatchview { *dispatch_view = nd; }
+                if let Some(nd) = new_dispatchview { 
+                    if nd.is_some() { *dispatch_view = nd; }
+                }
                 igSetCursorPos(pos);
             }
 

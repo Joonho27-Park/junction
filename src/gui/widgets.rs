@@ -81,6 +81,7 @@ impl Draw {
 
 pub fn canvas(mut size :ImVec2, color :u32, name :*const i8) -> Draw {
     unsafe {
+        static mut MOUSE_POS: ImVec2 = ImVec2 { x: 0.0, y: 0.0 };
         let pos :ImVec2 = igGetCursorScreenPos_nonUDT2().into();
         let draw_list = igGetWindowDrawList();
         ImDrawList_AddRectFilled(draw_list, pos, pos + size, color, 0.0, 0);
@@ -88,7 +89,14 @@ pub fn canvas(mut size :ImVec2, color :u32, name :*const i8) -> Draw {
         let clicked = igInvisibleButton(name, size);
         igSetItemAllowOverlap();
         let mouse = (*igGetIO()).MousePos - pos;
-        Draw { pos, size, draw_list, mouse }
+        if mouse.x < 0.0 || mouse.y < 0.0 {
+            let mouse = MOUSE_POS;
+            MOUSE_POS = mouse;
+            Draw { pos, size, draw_list, mouse }
+        } else {
+            MOUSE_POS = mouse;
+            Draw { pos, size, draw_list, mouse }
+        }
     }
 }
 

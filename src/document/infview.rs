@@ -12,6 +12,7 @@ pub struct InfView {
     pub selection :HashSet<Ref>,
     pub view :View,
     pub instant_cache: dispatch::InstantCache,
+    pub restore_insert_object: bool,
     // 이름 입력 상태
     pub id_input: Option<IdInputState>,
 }
@@ -51,6 +52,7 @@ impl InfView {
             view: View::default(),
             instant_cache: dispatch::InstantCache::new(),
             id_input: None,
+            restore_insert_object: false,
         }
     }
 }
