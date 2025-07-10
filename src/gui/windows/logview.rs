@@ -8,7 +8,7 @@ use crate::gui::widgets;
 
 pub fn view_log(popen :&mut bool, logstring :&Arc<Mutex<VecDeque<u8>>>) {
     if !*popen { return; }
-
+    
     unsafe {
         widgets::next_window_center_when_appearing();
         igBegin(const_cstr!("Log").as_ptr(), popen as _, 0 as _);
