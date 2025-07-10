@@ -264,29 +264,147 @@ pub fn route(config :&Config, analysis :&Analysis, inf_view :&InfView, draw :&Dr
 pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Draw) -> Option<()> { 
     let color = config.color_u32(RailUIColorName::CanvasTrain);
     let sight_color = config.color_u32(RailUIColorName::CanvasTrainSight);
+    
+    // 열차를 선로 위쪽에 위치시키기 위한 오프셋 거리
+    let offset_distance = 0.5;
+    
     for t in instant.trains.iter() {
-        for (p1,p2) in t.lines.iter() {
-            unsafe {
-            ImDrawList_AddLine(draw.draw_list,
-                               draw.pos + inf_view.view.world_ptc_to_screen(*p1),
-                               draw.pos + inf_view.view.world_ptc_to_screen(*p2),
-                               color, 2.0*10.0);
+        // 안전장치: train이 비어있으면 건너뛰기
+        if t.lines.is_empty() {
+            continue;
+        }
+        
+        // 1. 각 점마다 보간 normal 계산
+        let mut avg_normals = Vec::new();
+        let n = t.lines.len() + 1; // 점 개수 = 선분 개수 + 1
+
+        // 점 좌표 추출
+        let mut points = Vec::new();
+        if let Some((first, _)) = t.lines.first() {
+            points.push(*first);
+            for &(_, p2) in t.lines.iter() {
+                points.push(p2);
             }
         }
 
+        // points, avg_normals 생성 후
+        if points.len() < 2 { continue; } // 최소 2개 점 필요
+
+        // 각 점의 normal 계산
+        for i in 0..n {
+            // 안전장치: 인덱스 범위 체크
+            if i >= points.len() {
+                break;
+            }
+            
+            // 이전 tangent
+            let prev_tangent = if i > 0 && i < points.len() {
+                let (p0, p1) = (points[i-1], points[i]);
+                let diff = p1 - p0;
+                let length = glm::length(&diff);
+                if length > 0.0 {
+                    glm::normalize(&diff)
+                } else {
+                    glm::vec2(1.0, 0.0) // 기본값
+                }
+            } else if points.len() > 1 {
+                let diff = points[1] - points[0];
+                let length = glm::length(&diff);
+                if length > 0.0 {
+                    glm::normalize(&diff)
+                } else {
+                    glm::vec2(1.0, 0.0) // 기본값
+                }
+            } else {
+                glm::vec2(1.0, 0.0) // 기본값
+            };
+            
+            // 다음 tangent
+            let next_tangent = if i < n-1 && i+1 < points.len() {
+                let (p0, p1) = (points[i], points[i+1]);
+                let diff = p1 - p0;
+                let length = glm::length(&diff);
+                if length > 0.0 {
+                    glm::normalize(&diff)
+                } else {
+                    glm::vec2(1.0, 0.0) // 기본값
+                }
+            } else if i > 0 && i < points.len() {
+                let diff = points[i] - points[i-1];
+                let length = glm::length(&diff);
+                if length > 0.0 {
+                    glm::normalize(&diff)
+                } else {
+                    glm::vec2(1.0, 0.0) // 기본값
+                }
+            } else {
+                glm::vec2(1.0, 0.0) // 기본값
+            };
+            
+            // 각각의 normal
+            let prev_normal = glm::vec2(-prev_tangent.y, prev_tangent.x);
+            let next_normal = glm::vec2(-next_tangent.y, next_tangent.x);
+            
+            // 평균 normal 계산 (안전장치 추가)
+            let avg_normal_vec = prev_normal + next_normal;
+            let avg_length = glm::length(&avg_normal_vec);
+            let avg_normal = if avg_length > 0.0 {
+                glm::normalize(&avg_normal_vec)
+            } else {
+                glm::vec2(0.0, 1.0) // 기본 위쪽 방향
+            };
+            
+            avg_normals.push(avg_normal);
+        }
+
+        // 2. 각 선분을 그릴 때, 시작점과 끝점에서 각각 보간 normal로 offset
+        for i in 0..t.lines.len() {
+            // 반드시 avg_normals.len() > i+1, points.len() > i+1
+            if i+1 >= avg_normals.len() || i+1 >= points.len() { break; }
+            
+            let (p1, p2) = t.lines[i];
+            let n1 = avg_normals[i];
+            let n2 = avg_normals[i+1];
+            
+            // 안전장치: NaN이나 Inf 체크
+            if n1.x.is_nan() || n1.y.is_nan() || n2.x.is_nan() || n2.y.is_nan() ||
+               n1.x.is_infinite() || n1.y.is_infinite() || n2.x.is_infinite() || n2.y.is_infinite() {
+                continue;
+            }
+            
+            let p1_offset = p1 + offset_distance * n1;
+            let p2_offset = p2 + offset_distance * n2;
+            
+            unsafe {
+                ImDrawList_AddLine(
+                    draw.draw_list,
+                    draw.pos + inf_view.view.world_ptc_to_screen(p1_offset),
+                    draw.pos + inf_view.view.world_ptc_to_screen(p2_offset),
+                    color, 2.0*5.0
+                );
+            }
+        }
+
+        // 시야선도 마지막 점의 보간 normal 사용
         if let Some(front) = t.get_front() {
-            for pta in t.signals_sighted.iter() {
-                unsafe {
-                ImDrawList_AddLine(draw.draw_list,
-                                   draw.pos + inf_view.view.world_ptc_to_screen(front),
-                                   draw.pos + inf_view.view.world_ptc_to_screen(unround_coord(*pta)),
-                                   sight_color, 2.0*2.0);
+            let n = avg_normals.last().copied().unwrap_or(glm::vec2(0.0, 1.0));
+            
+            // 안전장치: NaN이나 Inf 체크
+            if !n.x.is_nan() && !n.y.is_nan() && !n.x.is_infinite() && !n.y.is_infinite() {
+                let front_offset = front + offset_distance * n;
+                for pta in t.signals_sighted.iter() {
+                    unsafe {
+                        ImDrawList_AddLine(
+                            draw.draw_list,
+                            draw.pos + inf_view.view.world_ptc_to_screen(front_offset),
+                            draw.pos + inf_view.view.world_ptc_to_screen(unround_coord(*pta)),
+                            sight_color, 2.0*2.0
+                        );
+                    }
                 }
             }
         }
-
     }
-
 
     Some(())
 }
