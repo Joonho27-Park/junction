@@ -92,13 +92,13 @@ impl Object {
                     // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
                     let normal_len = glm::length(&normal);
                     let n = if normal_len > 0.0 { normal / normal_len } else { normal };
-                    let offset = 0.35 * n * factor;
-                    if factor > 0.0 { 
-                        self.tangent *= -1; 
+                    let offset = SIGNAL_OFFSET * n * factor;
+                    if factor > 0.0 {
+                        self.tangent *= -1;
                     }
                     self.loc = glm::vec2(
-                        pt_on_line.x.round(),
-                        pt_on_line.y.round()
+                        (pt_on_line.x * 2.0).round() / 2.0,
+                        (pt_on_line.y * 2.0).round() / 2.0
                     );
                     // 신호기는 detector가 있는 위치에만 배치 가능
                     if !model.has_detector_at(self.loc) {
@@ -108,10 +108,10 @@ impl Object {
                     // 신호기가 성공적으로 배치될 때 기울기 출력 및 각도 저장
                     let tangent_angle = (self.tangent.y as f32).atan2(self.tangent.x as f32);
                     let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
-                    
+
                     // 이 신호기의 각도를 저장
                     self.placed_angle = Some(angle_degrees);
-                    
+
                     // 각도에 따라 TrackDirection 설정
                     if let Some(signal_props) = &mut self.signal_props {
                         let direction = if angle_degrees == -135.0 || angle_degrees == 135.0 || angle_degrees == 180.0 {
@@ -127,8 +127,8 @@ impl Object {
                     return Some(());
             } else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
                 self.loc = glm::vec2(
-                    pt_on_line.x.round(),
-                    pt_on_line.y.round()
+                    (pt_on_line.x * 2.0).round() / 2.0,
+                    (pt_on_line.y * 2.0).round() / 2.0
                 );
                 return Some(());
             } else if self.functions.iter().find(|c| matches!(c, Function::Switch { id: _ })).is_some() {
@@ -138,16 +138,16 @@ impl Object {
                     1.0 } else { -1.0 };
                 let offset = SWITCH_OFFSET*normal*factor;
                 let place_pos = glm::vec2(
-                    pt_on_line.x.round() + offset.x,
-                    pt_on_line.y.round() + offset.y
+                    (pt_on_line.x * 2.0).round() / 2.0 + offset.x,
+                    (pt_on_line.y * 2.0).round() / 2.0 + offset.y
                 );
                 let mut found = false;
                 
                 // 신호기와 동일하게 tangent 방향 조정
-                if factor > 0.0 { 
-                    self.tangent *= -1; 
+                if factor > 0.0 {
+                    self.tangent *= -1;
                 }
-                
+
                 // analysis를 통해 topology의 locations에서 스위치 노드 찾기
                 if let Some((_, topology)) = analysis.data().topology.as_ref() {
                     for (sw_pt, (ndtype, _)) in topology.locations.iter() {
@@ -165,7 +165,7 @@ impl Object {
                     // 스위치가 성공적으로 배치될 때만 기울기 출력 및 각도 저장
                     let tangent_angle = (self.tangent.y as f32).atan2(self.tangent.x as f32);
                     let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
-                    
+
                     // 이 스위치의 각도를 저장
                     self.placed_angle = Some(angle_degrees);
                     return Some(());
@@ -220,7 +220,7 @@ impl Object {
 
                                 // 2. 신호기 기둥 길이 결정: 원거리 신호기가 있으면 2.0, 없으면 1.0
                                 let stem = if *has_distant { 2.0 } else { 1.0 };
-                                
+
                                 // 3. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
                                 // p(트랙 위치)에서 p + stem*tangent(신호등 위치)까지
                                 ImDrawList_AddLine(draw_list, p, p + stem*tangent, c, 2.0);
@@ -264,19 +264,19 @@ impl Object {
                                     // 크기: scale*0.8 (메인 신호기보다 작음)
                                     ImDrawList_AddCircle(draw_list, p + 1.5*tangent + normal, scale*0.8, c, 8, 2.0);
                                 }
-                                
+
                                 // 메인 신호기 외곽선
                                 // 위치: 기둥 끝에서 tangent 방향으로 한 단위 더 이동한 곳
                                 // 크기: scale (원거리 신호기보다 큼)
                                 ImDrawList_AddCircle(draw_list, p + stem*tangent + tangent, scale, c, 8, 2.0);
-                                
+
                                 // ===== 메인 신호기 ID 텍스트 렌더링 =====
                                 // 신호기 ID가 있으면 신호기 기둥 아래에 텍스트를 표시
                                 if let Function::Signal { id: Some(id), .. } = f {
                                   // ===== 신호기 방향에 따른 텍스트 위치 조정 =====
                                   // 신호기가 왼쪽을 향하는지 오른쪽을 향하는지에 따라 텍스트 위치가 달라짐
                                   let id_len = id.len() as f32;
-                                  
+
                                   // X축 오프셋: 신호기 방향에 따라 다르게 적용
                                   let x_offset = if self.tangent.x < 0 {
                                     // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
@@ -285,24 +285,24 @@ impl Object {
                                     // 신호기가 오른쪽을 향할 때: 텍스트를 왼쪽으로 배치
                                     - 3.0 - id_len * 9.0 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
                                   };
-                                  
+
                                   // Y축 오프셋: 신호기 방향과 관계없이 동일
                                   let y_offset = if self.tangent.x < 0 {
                                      -7.5 // 왼쪽을 향할 때 y offset -7.5
                                   } else {
                                      -7.5 // 오른쪽을 향할 때 y offset -7.5
                                   };
-                                  
+
                                   // 최종 텍스트 위치 계산
                                   let screen_offset = ImVec2 { x: x_offset, y: y_offset };
                                   let text_pos = p + screen_offset;
-                                  
+
                                   // 텍스트 색상: 검은색 (CanvasText)
                                   let text_color = config.color_u32(RailUIColorName::CanvasText);
-                                  
+
                                   // CString으로 변환 (ImGui 텍스트 렌더링용)
                                   let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
-                                  
+
                                   // 텍스트 렌더링
                                   ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
                             }
@@ -315,7 +315,7 @@ impl Object {
 
                                 // 2. 신호기 기둥 길이 결정: 원거리 신호기가 있으면 2.0, 없으면 1.0
                                 let stem = if *has_distant { 2.0 } else { 1.0 };
-                                
+
                                 // 3. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
                                 ImDrawList_AddLine(draw_list, p, p + mul_imvec2(tangent, stem), c, 2.0);
 
@@ -323,7 +323,7 @@ impl Object {
                                 // tangent의 수직 벡터 계산 (한 번만 계산해서 재사용)
                                 // tangent = (tx, ty)일 때 normal = (ty, -tx)로 계산 (90도 회전)
                                 let normal = ImVec2 { x: tangent.y, y: -tangent.x };
-                                
+
                                 // normal 벡터 정규화 (길이 1로 만듦)
                                 let normal_len = (normal.x * normal.x + normal.y * normal.y).sqrt();
                                 let n = if normal_len > 0.0 {
@@ -347,10 +347,10 @@ impl Object {
 
                                     // ===== 1/4 원의 중심(base) 위치 결정 =====
                                     let base = match s {
-                                        ObjectState::DistantStop | ObjectState::DistantProceed => 
+                                        ObjectState::DistantStop | ObjectState::DistantProceed =>
                                             // 원거리 신호: 기둥에서 1.5*tangent + normal 방향으로 이동
                                             p + mul_imvec2(tangent, 1.5) + mul_imvec2(n, offset),
-                                        _ => 
+                                        _ =>
                                             // 메인 신호: 기둥 끝에서 normal 방향으로 이동
                                             p + mul_imvec2(tangent, stem) + mul_imvec2(n, offset),
                                     };
@@ -415,27 +415,27 @@ impl Object {
                                     let base = p + mul_imvec2(tangent, 1.5) + mul_imvec2(n, offset);
                                     // 1/4 원의 반지름(크기): 메인 신호기보다 작음
                                     let size = scale * 1.5;
-                                    
+
                                     // tangent 벡터 정규화
                                     let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
                                     let t = if tangent_len > 0.0 {
                                         ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
                                     } else { ImVec2 { x: 1.0, y: 0.0 } };
-                                    
+
                                     // tangent 벡터의 각도
                                     let t_angle = t.y.atan2(t.x);
-                                    
+
                                     // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
                                     let a0 = t_angle;
                                     let a1 = a0 + std::f32::consts::FRAC_PI_2;
                                     let num_segments = 16;
-                                    
+
                                     // 아크의 시작점 좌표 계산
                                     let start_pt = ImVec2 {
                                         x: base.x + size * a0.cos(),
                                         y: base.y + size * a0.sin(),
                                     };
-                                    
+
                                     // ===== 원거리 신호기 외곽선 그리기 =====
                                     // 패스 초기화
                                     ImDrawList_PathClear(draw_list);
@@ -455,27 +455,27 @@ impl Object {
                                 let base = p + mul_imvec2(tangent, stem) + mul_imvec2(n, offset);
                                 // 반지름(크기): 원거리 신호기보다 큼
                                 let size = scale * 2.0;
-                                
+
                                 // tangent 벡터 정규화
                                 let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
                                 let t = if tangent_len > 0.0 {
                                     ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
                                 } else { ImVec2 { x: 1.0, y: 0.0 } };
-                                
+
                                 // tangent 벡터의 각도
                                 let t_angle = t.y.atan2(t.x);
-                                
+
                                 // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
                                 let a0 = t_angle;
                                 let a1 = a0 + std::f32::consts::FRAC_PI_2;
                                 let num_segments = 16;
-                                
+
                                 // 아크의 시작점 좌표 계산
                                 let start_pt = ImVec2 {
                                     x: base.x + size * a0.cos(),
                                     y: base.y + size * a0.sin(),
                                 };
-                                
+
                                 // ===== 메인 신호기 외곽선 그리기 =====
                                 // 패스 초기화
                                 ImDrawList_PathClear(draw_list);
@@ -561,19 +561,19 @@ impl Object {
                             } else {
                                 3.5   // 기본값 (0도, 180도, 45도, -135도 등)
                             };
-                            
+
                             // y offset 조정: 135도와 -45도 근처에서는 0, 그 외에는 -1.5
-                            let y_offset = if (angle_degrees >= 130.0 && angle_degrees <= 140.0) || 
+                            let y_offset = if (angle_degrees >= 130.0 && angle_degrees <= 140.0) ||
                                         (angle_degrees >= -50.0 && angle_degrees <= -40.0) ||
-                                        (angle_degrees >= 40.0 && angle_degrees <= 50.0) || 
+                                        (angle_degrees >= 40.0 && angle_degrees <= 50.0) ||
                                         (angle_degrees >= -140.0 && angle_degrees <= -130.0) {
                                 0.0   // 135도 또는 -45도 근처일 때
                             } else {
                                 -1.5  // 그 외의 경우 (0도, 180도 등)
                             };
-                            
+
                             let offset_vec = ImVec2 { x: x_offset, y: y_offset };
-                            
+
                             // 기울기에 따라 꼭지점 선택
                             let text_pos = if angle_degrees >= 130.0 && angle_degrees <= 140.0 {
                                 // 135도 근처: stem_tr
@@ -591,7 +591,7 @@ impl Object {
                                 // 그 외의 경우 (0도, 180도 등): 기존 로직 (n.y에 따라 stem_tr 또는 stem_bl)
                                 (if n.y > 0.0 { stem_tr } else { stem_bl }) + offset_vec
                             };
-                            
+
                             let text_color = config.color_u32(RailUIColorName::CanvasText);
                             let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
                             ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());

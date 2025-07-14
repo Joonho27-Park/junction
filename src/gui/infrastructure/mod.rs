@@ -229,7 +229,7 @@ fn show_object_properties_panel(analysis: &mut Analysis, inf_view: &InfView) {
     }
 }
 
-pub fn inf_view(config :&Config, 
+pub fn inf_view(config :&Config,
                 analysis :&mut Analysis,
                 inf_view :&mut InfView,
                 dispatch_view :&mut Option<DispatchView>) -> Draw {
@@ -283,6 +283,7 @@ fn draw_inf(config :&Config, analysis :&mut Analysis, inf_view :&mut InfView,
 
 fn scroll(inf_view :&mut InfView) { 
     unsafe {
+        if inf_view.focused { return; }
         if !igIsItemHovered(0){ return; }
         let io = igGetIO();
         let wheel = (*io).MouseWheel;
@@ -320,6 +321,7 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
     // inf_view
     // analysis
     unsafe {
+        if inf_view.focused { return; }
         let io = igGetIO();
         match state {
             NormalState::SelectWindow(a) => {
@@ -350,6 +352,8 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
                 }
             }
             NormalState::Default => {
+                // 배경 클릭 차단: focused가 true면 return
+                if inf_view.focused { return; }
                 if !(*io).KeyCtrl && igIsItemHovered(0) && igIsMouseDragging(0,-1.0) {
                     if let Some((r,_)) = analysis.get_closest(
                             inf_view.view.screen_to_world_ptc(draw.mouse)) {
@@ -364,18 +368,15 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
                         }
                     } else {
                         let a = (*io).MouseClickedPos[0] - draw.pos;
-                        //let b = a + igGetMouseDragDelta_nonUDT2(0,-1.0).into();
                         inf_view.action = Action::Normal(NormalState::SelectWindow(a));
                     }
                 } else {
                     if igIsMouseReleased(0) {
-                        if inf_view.restore_insert_object {
-                            inf_view.action = Action::InsertObject(None);
-                            inf_view.restore_insert_object = false;
-                            return;
-                        }
+                        // focused가 true면 배경 클릭 무시
+                        if inf_view.focused { return; }
                     }
                     if igIsItemHovered(0) && igIsMouseReleased(0) {
+                        if inf_view.focused { return; }
                         if !(*io).KeyShift { inf_view.selection.clear(); }
                         if let Some((r,_)) = analysis.get_closest(
                                 inf_view.view.screen_to_world_ptc(draw.mouse)) {
@@ -386,7 +387,6 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
             },
         }
     }
-
 }
 
 pub fn set_selection_window(inf_view :&mut InfView, analysis :&Analysis, a :ImVec2, b :ImVec2) {
@@ -428,6 +428,7 @@ pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, to
 fn interact_drawing(config :&Config, analysis :&mut Analysis, inf_view :&mut InfView, 
                     draw :&Draw, from :Option<Pt>) {
     unsafe {
+        if inf_view.focused { return; }
         let color = config.color_u32(RailUIColorName::CanvasTrackDrawing);
         let pt_end_raw = inf_view.view.screen_to_world_pt(draw.mouse);
         let pt_end = util::clamp_pt(pt_end_raw);
@@ -547,10 +548,11 @@ fn model_rename_object(model :&mut Model, a :PtA, b :PtA) {
 fn interact_insert(config :&Config, analysis :&mut Analysis, 
                    inf_view :&mut InfView, draw :&Draw, obj :Option<Object>) {
     unsafe {
+        if inf_view.focused { return; }
         let io = igGetIO();
         if igIsMouseClicked(1, false) {
-            inf_view.action = Action::Normal(NormalState::Default);
-            inf_view.restore_insert_object = true; // ← Insert Object 복귀 예약
+            inf_view.focused = true;
+            println!("inf_view.focused = true");
             return;
         }
         if let Some(mut obj) = obj {
@@ -564,10 +566,10 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
             
             obj.draw(draw.pos,&inf_view.view,draw.draw_list,
                     preview_color,&[],&config);
-            
+
             // move_to가 성공했는지 확인 (Some(())이면 성공, None이면 실패)
             let placement_successful = moved.is_some();
-            
+
             if !placement_successful {
                 let p = draw.pos + inf_view.view.world_ptc_to_screen(obj.loc);
                 //기존 Rectangle
@@ -609,7 +611,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                     inf_view.id_input = Some(IdInputState {
                                         object: obj,  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
-                                        position: position,
+                                        position: position.clone(),
                                     });
                                 },
                                 Some(SignalType::Shunting) => {
@@ -617,7 +619,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                     inf_view.id_input = Some(IdInputState {
                                         object: obj,  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
-                                        position: position,
+                                        position: position.clone(),
                                     });
                                 },
                                 _ => {}
@@ -685,6 +687,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                           ImGuiWindowFlags__ImGuiWindowFlags_NoTitleBar as i32;
         
         if igBegin(const_cstr!("ObjectMenu").as_ptr(), std::ptr::null_mut(), window_flags) {
+            inf_view.focused = true; // 메뉴 열릴 때 true
             // Home Signal (H)
             if igSelectable(const_cstr!("\u{f637} Home Signal (H)").as_ptr(), false, 0 as _, ImVec2::zero()) {
                 inf_view.action = Action::InsertObject(Some(
@@ -771,7 +774,13 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
             }
             
             igEnd();
+            // 메뉴가 닫힐 때는 igBegin이 false가 되므로 아래에서 처리
+        } else {
+            inf_view.focused = false;
         }
+    } else {
+        // 메뉴가 닫혔으면 false로
+        inf_view.focused = false;
     }
 
     igSameLine(0.0,-1.0);
@@ -871,8 +880,13 @@ fn context_menu(analysis :&mut Analysis,
                 draw :&Draw, preview_route :&mut Option<usize>) {
     unsafe {
     if igBeginPopup(const_cstr!("ctx").as_ptr(), 0 as _) {
+        inf_view.focused = true; // 팝업 열릴 때 true
         context_menu_contents(analysis, inf_view, dispatch_view, preview_route);
         igEndPopup();
+        // 팝업이 닫히는 시점은 igBeginPopup이 false가 될 때이므로, 아래에서 처리
+    } else {
+        // 팝업이 닫혔으면 false로
+        inf_view.focused = false;
     }
 
     if igIsItemHovered(0) && igIsMouseClicked(1, false) {
@@ -1010,6 +1024,8 @@ fn dispatch_view_ref(dispatch_view :&Option<DispatchView>) -> Option<DispatchRef
 fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
     unsafe {
         if let Some(ref mut id_input) = inf_view.id_input {
+            inf_view.focused = true;
+            // 이미 열릴 때 true, 닫힐 때 false 처리되어 있음 (유지)
             // 중앙에 다이얼로그 표시
             let display_size = (*igGetIO()).DisplaySize;
             igSetNextWindowPos(ImVec2 { x: display_size.x/2.0, y: display_size.y/2.0}, 
@@ -1075,9 +1091,9 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 let position = id_input.position;
                 // 이름을 Function에 설정
                 if let Some(Function::Signal { has_distant, .. }) = object.functions.first() {
-                    let new_function = Function::Signal { 
+                    let new_function = Function::Signal {
                         has_distant: *has_distant, 
-                        id: Some(id.clone()) 
+                        id: Some(id.clone())
                     };
                     object.functions = vec![new_function];
                 } else if let Some(Function::Switch { .. }) = object.functions.first() {
@@ -1091,9 +1107,11 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 });
                 // ID 입력 상태 초기화
                 inf_view.id_input = None;
+                inf_view.focused = false; // 입력창 닫힐 때 포커스 false
             } else if should_cancel {
                 // ID 입력 상태 초기화
                 inf_view.id_input = None;
+                inf_view.focused = false; // 입력창 닫힐 때 포커스 false
             }
         }
     }
