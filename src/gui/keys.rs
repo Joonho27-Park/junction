@@ -50,7 +50,12 @@ pub fn keys(app :&mut App) {
 
 
         if !igIsAnyItemActive() {
-            if igIsKeyPressed('A' as _, false) {
+            if (*io).KeyCtrl && igIsKeyPressed('A' as _, false) {
+                use std::collections::HashSet;
+                use crate::document::model::Ref;
+                let all_ids: HashSet<Ref> = app.document.analysis.model().objects.keys().map(|pt| Ref::Object(*pt)).collect();
+                app.document.inf_view.selection = all_ids;
+            } else if igIsKeyPressed('A' as _, false) {
                 app.document.inf_view.action = Action::Normal(NormalState::Default);
             }
 
@@ -147,7 +152,7 @@ pub fn keys(app :&mut App) {
                     }
                 ));
             }
-
+            
             // 객체 선택 후, Delete 또는 Backspace 키를 누르면 선택된 객체를 삭제
             // Delete selected elements with Delete or Backspace key
             if igIsKeyPressed(ImGuiKey__ImGuiKey_Delete as _, false) {
