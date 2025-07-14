@@ -65,7 +65,7 @@ pub struct Interval {
 }
 
 impl DGraphBuilder {
-    pub fn convert(topology :&Topology) -> Result<DGraph, ()> {
+    pub fn convert(topology :&Topology, model :&Model) -> Result<DGraph, ()> {
         let mut m = DGraphBuilder::new();
 
         let tracks = &topology.tracks;
@@ -92,38 +92,46 @@ impl DGraphBuilder {
 
                     cursor = dg.insert_node_pair(cursor);
 
-                    match func {
-                        Function::Detector => { 
-                            let (a,b) = cursor.nodes(&dg.dgraph);
-                            detector_nodes.insert((a,b));
-                            detector_ids.insert(a,id);
-                            detector_ids.insert(b,id);
-                        },
-                        Function::MainSignal { has_distant, id: _ }=> { 
-                            let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
-                            signal_cursors.insert(id,c); 
-
-                            let (_cursor, obj) = dg.insert_object(c, 
-                                  rolling_inf::StaticObject::Signal { has_distant: has_distant });
-                            static_signals.insert(id, obj);
-                            object_ids.insert(obj, id);
-                        },
-                        Function::ShiftingSignal { has_distant, id: _ }=> { 
-                            let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
-                            signal_cursors.insert(id,c); 
-
-                            let (_cursor, obj) = dg.insert_object(c, 
-                                  rolling_inf::StaticObject::Signal { has_distant: has_distant });
-                            static_signals.insert(id, obj);
-                            object_ids.insert(obj, id);
-                        },
-                        Function::Switch => { 
-                            // Switch는 현재 Detector와 동일하게 처리
-                            let (a,b) = cursor.nodes(&dg.dgraph);
-                            detector_nodes.insert((a,b));
-                            detector_ids.insert(a,id);
-                            detector_ids.insert(b,id);
-                        },
+                    if let Some(object) = model.objects.get(&id) {
+                        match func {
+                            Function::Detector => { 
+                                let (a,b) = cursor.nodes(&dg.dgraph);
+                                detector_nodes.insert((a,b));
+                                detector_ids.insert(a,id);
+                                detector_ids.insert(b,id);
+                            },
+                            Function::Signal { has_distant, id: _ } => {
+                                let style = object.signal_props.as_ref().map(|props| props.signal_type.clone());
+                                match style {
+                                    Some(SignalType::Home) | Some(SignalType::Departure) => {
+                                        // 기존 MainSignal 코드
+                                        let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
+                                        signal_cursors.insert(id,c); 
+                                        let (_cursor, obj) = dg.insert_object(c, 
+                                            rolling_inf::StaticObject::Signal { has_distant: has_distant });
+                                        static_signals.insert(id, obj);
+                                        object_ids.insert(obj, id);
+                                    },
+                                    Some(SignalType::Shunting) => {
+                                        // 기존 ShuntingSignal 코드
+                                        let c = if matches!(dir,Some(AB::B)) { cursor.reverse(&dg.dgraph) } else { cursor };
+                                        signal_cursors.insert(id,c); 
+                                        let (_cursor, obj) = dg.insert_object(c, 
+                                            rolling_inf::StaticObject::Signal { has_distant: has_distant });
+                                        static_signals.insert(id, obj);
+                                        object_ids.insert(obj, id);
+                                    },
+                                    _ => {}
+                                }
+                            },
+                            Function::Switch { id: _ } => { 
+                                // Switch는 현재 Detector와 동일하게 처리
+                                let (a,b) = cursor.nodes(&dg.dgraph);
+                                detector_nodes.insert((a,b));
+                                detector_ids.insert(a,id);
+                                detector_ids.insert(b,id);
+                            },
+                        }
                     }
                     last_pos = pos;
                 }

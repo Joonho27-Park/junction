@@ -93,37 +93,10 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
                     }
                 },
-                Function::MainSignal { .. } => {
-                    if sig_id.get(id).map(|o| signals.contains(&planner::input::SignalId::Signal(*o)))
-                        .unwrap_or(false) {
-
-                            
-                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, func.clone(), *dir));
-
-                    } else if sig_id.get(id).map(|o| detectors.contains(&planner::input::SignalId::Signal(*o)))
-                        .unwrap_or(false) {
-
-                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, Function::Detector, None));
-                    }
+                Function::Signal { .. } => {
+                    // signal_props.signal_type으로 분기 필요시 추가
                 },
-                Function::ShiftingSignal { .. } => {
-                    if sig_id.get(id).map(|o| signals.contains(&planner::input::SignalId::Signal(*o)))
-                        .unwrap_or(false) {
-
-                            
-                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, func.clone(), *dir));
-
-                    } else if sig_id.get(id).map(|o| detectors.contains(&planner::input::SignalId::Signal(*o)))
-                        .unwrap_or(false) {
-
-                        id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
-                        design.push((track_idx, *pos, Function::Detector, None));
-                    }
-                },
-                Function::Switch => {
+                Function::Switch { id: _ } => {
                     // Switch는 현재 Detector와 동일하게 처리
                     if det_id.get(id).map(|d| detectors.contains(&planner::input::SignalId::Detector(*d)) ||
                                               detectors.contains(&planner::input::SignalId::Detector(*d + 1)))

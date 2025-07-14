@@ -153,23 +153,30 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                 let track_objs = &mut trackobjects[track_idx];
 
                 for f in functions.iter() {
-                    match f {
-                        Function::Detector => {
-                            track_objs.push((pos,*id,Function::Detector,None));
-                        },
-                        Function::MainSignal { has_distant, id: _ } => {
-                            
-                            // TODO this seems unnecessary when we can simply copy the `Function`s.
-                            track_objs.push((pos,*id, Function::MainSignal { has_distant: *has_distant, id: None },
-                                             Some(get_dir_from_side(&pt, *loc))));
-                        }
-                        Function::ShiftingSignal { has_distant, id: _ } => {
-                            // TODO this seems unnecessary when we can simply copy the `Function`s.
-                            track_objs.push((pos,*id, Function::ShiftingSignal { has_distant: *has_distant, id: None },
-                                             Some(get_dir_from_side(&pt, *loc))));
-                        }
-                        Function::Switch => {
-                            track_objs.push((pos,*id,Function::Switch,None));
+                    if let Some(object) = model.objects.get(&id) {
+                        match f {
+                            Function::Detector => {
+                                track_objs.push((pos,*id,Function::Detector,None));
+                            },
+                            Function::Signal { has_distant, id: _ } => {
+                                let style = object.signal_props.as_ref().map(|props| props.signal_type.clone());
+                                match style {
+                                    Some(SignalType::Home) | Some(SignalType::Departure) => {
+                                        // 기존 MainSignal 코드
+                                        track_objs.push((pos,*id, Function::Signal { has_distant: *has_distant, id: None },
+                                            Some(get_dir_from_side(&pt, *loc))));
+                                    },
+                                    Some(SignalType::Shunting) => {
+                                        // 기존 ShuntingSignal 코드
+                                        track_objs.push((pos,*id, Function::Signal { has_distant: *has_distant, id: None },
+                                            Some(get_dir_from_side(&pt, *loc))));
+                                    },
+                                    _ => {}
+                                }
+                            },
+                            Function::Switch { id: _ } => {
+                                track_objs.push((pos,*id,Function::Switch { id: None },None));
+                            }
                         }
                     }
                 }

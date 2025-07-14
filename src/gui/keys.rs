@@ -75,8 +75,15 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: false, id: None }],
+                        functions: vec![Function::Signal { has_distant: false, id: None }],
                         id: None,
+                        signal_props: Some(SignalProperties {
+                            signal_type: SignalType::Home,
+                            signal_kind: SignalKind::Two,
+                            direction: TrackDirection::Right,
+                        }),
+                        switch_props: None,
+                        placed_angle: None,
                     }
                 ));
             }
@@ -85,8 +92,15 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::MainSignal { has_distant: true, id: None }],
+                        functions: vec![Function::Signal { has_distant: false, id: None }],
                         id: None,
+                        signal_props: Some(SignalProperties {
+                            signal_type: SignalType::Departure,
+                            signal_kind: SignalKind::Two,
+                            direction: TrackDirection::Right,
+                        }),
+                        switch_props: None,
+                        placed_angle: None,
                     }
                 ));
             }
@@ -95,8 +109,15 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::ShiftingSignal { has_distant: false, id: None }],
+                        functions: vec![Function::Signal { has_distant: false, id: None }],
                         id: None,
+                        signal_props: Some(SignalProperties {
+                            signal_type: SignalType::Shunting,
+                            signal_kind: SignalKind::Two,
+                            direction: TrackDirection::Right,
+                        }),
+                        switch_props: None,
+                        placed_angle: None,
                     }
                 ));
             }
@@ -107,6 +128,9 @@ pub fn keys(app :&mut App) {
                         tangent: glm::vec2(1,0),
                         functions: vec![Function::Detector],
                         id: None,
+                        signal_props: None,
+                        switch_props: None,
+                        placed_angle: None,
                     }
                 ));
             }
@@ -115,8 +139,11 @@ pub fn keys(app :&mut App) {
                     Object {
                         loc: glm::vec2(0.0, 0.0),
                         tangent: glm::vec2(1,0),
-                        functions: vec![Function::Switch],
+                        functions: vec![Function::Switch { id: None }],
                         id: None,
+                        signal_props: None,
+                        switch_props: None,
+                        placed_angle: None,
                     }
                 ));
             }
