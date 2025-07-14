@@ -53,8 +53,8 @@ impl Object {
                     let offset = SIGNAL_OFFSET * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
-                        pt_on_line.x.round(),
-                        pt_on_line.y.round()
+                        (pt_on_line.x * 2.0).round() / 2.0,
+                        (pt_on_line.y * 2.0).round() / 2.0
                     );
                     if !model.has_detector_at(self.loc) {
                         self.loc += offset;
@@ -70,8 +70,8 @@ impl Object {
                     let offset = SIGNAL_OFFSET * n * factor;
                     if factor > 0.0 { self.tangent *= -1; }
                     self.loc = glm::vec2(
-                        pt_on_line.x.round(),
-                        pt_on_line.y.round()
+                        (pt_on_line.x * 2.0).round() / 2.0,
+                        (pt_on_line.y * 2.0).round() / 2.0
                     );
                     if !model.has_detector_at(self.loc) {
                         self.loc += offset;
@@ -80,8 +80,8 @@ impl Object {
                     self.loc += offset;
             } else if self.functions.iter().find(|c| matches!(c, Function::Detector)).is_some() {
                 self.loc = glm::vec2(
-                    pt_on_line.x.round(),
-                    pt_on_line.y.round()
+                    (pt_on_line.x * 2.0).round() / 2.0,
+                    (pt_on_line.y * 2.0).round() / 2.0
                 );
             } else if self.functions.iter().find(|c| matches!(c, Function::Switch { .. })).is_some() {
                 // Switch는 NDType::Sw(side) 노드의 normal 방향 offset 위치와 가까울 때만 배치 가능
@@ -89,8 +89,8 @@ impl Object {
                     1.0 } else { -1.0 };
                 let offset = SWITCH_OFFSET*normal*factor;
                 let place_pos = glm::vec2(
-                    pt_on_line.x.round() + offset.x,
-                    pt_on_line.y.round() + offset.y
+                    (pt_on_line.x * 2.0).round() / 2.0 + offset.x,
+                    (pt_on_line.y * 2.0).round() / 2.0 + offset.y
                 );
                 let mut found = false;
                 
