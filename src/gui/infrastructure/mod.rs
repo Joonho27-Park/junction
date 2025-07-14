@@ -403,7 +403,8 @@ pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, to
         match id {
             Ref::Object(pta) => {
                 let mut obj = model.objects.get_mut(pta).unwrap().clone();
-                obj.move_to(&model, analysis, obj.loc + delta);
+                let moved = obj.move_to(&model, &analysis, to);
+                if let Some(_) = moved { return; }
                 let new_pta = round_coord(obj.loc);
                 model.objects.remove(pta);
                 model.objects.insert(new_pta,obj);
@@ -552,7 +553,6 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
         let io = igGetIO();
         if igIsMouseClicked(1, false) {
             inf_view.focused = true;
-            println!("inf_view.focused = true");
             return;
         }
         if let Some(mut obj) = obj {
@@ -602,34 +602,35 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                    config.color_u32(RailUIColorName::CanvasSymbolLocError),
                    4.0);
                             } else  {
-                    if igIsMouseReleased(0) {
+                    if igIsMouseReleased(0) && !inf_view.focused {
+                        println!("interact_insert: focused == {:?}", inf_view.focused);
                         // MainSignal 또는 Switch인 경우 이름 입력 다이얼로그 표시
                         if let Some(Function::Signal { .. }) = obj.functions.first() {
                             match obj.signal_props.as_ref().map(|props| props.signal_type.clone()) {
                                 Some(SignalType::Home) | Some(SignalType::Departure) => {
-                                    let position = obj.loc;
+                                    println!("obj.loc a: {:?}", obj.loc);
                                     inf_view.id_input = Some(IdInputState {
-                                        object: obj,  // move_to가 호출된 후의 obj 사용
+                                        object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
-                                        position: position.clone(),
+                                        position: obj.loc.clone(),
                                     });
                                 },
                                 Some(SignalType::Shunting) => {
-                                    let position = obj.loc;
+                                    println!("obj.loc b: {:?}", obj.loc);
                                     inf_view.id_input = Some(IdInputState {
-                                        object: obj,  // move_to가 호출된 후의 obj 사용
+                                        object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
-                                        position: position.clone(),
+                                        position: obj.loc.clone(),
                                     });
                                 },
                                 _ => {}
                             }
                         } else if obj.functions.iter().any(|f| matches!(f, Function::Switch { .. })) {
-                            let position = obj.loc;
+                            println!("obj.loc c: {:?}", obj.loc);
                             inf_view.id_input = Some(IdInputState {
-                                object: obj,  // move_to가 호출된 후의 obj 사용
+                                object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                 id: String::new(),
-                                position: position,
+                                position: obj.loc.clone(),
                             });
                         } else {
                         // 그 외 객체는 바로 배치
@@ -705,6 +706,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         placed_angle: None,
                     }
                 ));
+                inf_view.focused = false;
             }
             // Departure Signal (E)
             if igSelectable(const_cstr!("\u{f5b0} Departure Signal (E)").as_ptr(), false, 0 as _, ImVec2::zero()) {
@@ -723,6 +725,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         placed_angle: None,
                     }
                 ));
+                inf_view.focused = false;
             }
             // Shunting Signal (U)
             if igSelectable(const_cstr!("\u{f061} Shunting Signal (U)").as_ptr(), false, 0 as _, ImVec2::zero()) {
@@ -741,6 +744,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         placed_angle: None,
                     }
                 ));
+                inf_view.focused = false;
             }
             
             // Section Insulator (I)
@@ -756,6 +760,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         placed_angle: None,
                     }
                 ));
+                inf_view.focused = false;
             }
             
             // Switch (W)
@@ -771,6 +776,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         placed_angle: None,
                     }
                 ));
+                inf_view.focused = false;
             }
             
             igEnd();
@@ -778,9 +784,6 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
         } else {
             inf_view.focused = false;
         }
-    } else {
-        // 메뉴가 닫혔으면 false로
-        inf_view.focused = false;
     }
 
     igSameLine(0.0,-1.0);
@@ -789,6 +792,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
     if toolbar_button(const_cstr!("\u{f303}").as_ptr(), 
                       matches!(inf_view.action, Action::DrawingLine(_)), true ) {
         inf_view.action = Action::DrawingLine(None);
+        inf_view.focused = false;
     }
     if igIsItemHovered(0) {
         igBeginTooltip();
@@ -879,24 +883,27 @@ fn context_menu(analysis :&mut Analysis,
                 dispatch_view :&mut Option<DispatchView>,
                 draw :&Draw, preview_route :&mut Option<usize>) {
     unsafe {
-    if igBeginPopup(const_cstr!("ctx").as_ptr(), 0 as _) {
-        inf_view.focused = true; // 팝업 열릴 때 true
-        context_menu_contents(analysis, inf_view, dispatch_view, preview_route);
-        igEndPopup();
-        // 팝업이 닫히는 시점은 igBeginPopup이 false가 될 때이므로, 아래에서 처리
-    } else {
-        // 팝업이 닫혔으면 false로
-        inf_view.focused = false;
-    }
-
-    if igIsItemHovered(0) && igIsMouseClicked(1, false) {
-        if let Some((r,_)) = analysis.get_closest(inf_view.view.screen_to_world_ptc(draw.mouse)) {
-            if !inf_view.selection.contains(&r) {
-                inf_view.selection = std::iter::once(r).collect();
-            }
+        static mut WAS_CTX_POPUP_OPEN: bool = false;
+        let is_ctx_popup_open = igBeginPopup(const_cstr!("ctx").as_ptr(), 0 as _);
+        if is_ctx_popup_open {
+            inf_view.focused = true; // 팝업 열릴 때 true
+            context_menu_contents(analysis, inf_view, dispatch_view, preview_route);
+            igEndPopup();
         }
-        igOpenPopup(const_cstr!("ctx").as_ptr());
-    }
+        // 팝업이 닫히는 순간 감지
+        if WAS_CTX_POPUP_OPEN && !is_ctx_popup_open {
+            inf_view.focused = false;
+        }
+        WAS_CTX_POPUP_OPEN = is_ctx_popup_open;
+
+        if igIsItemHovered(0) && igIsMouseClicked(1, false) {
+            if let Some((r,_)) = analysis.get_closest(inf_view.view.screen_to_world_ptc(draw.mouse)) {
+                if !inf_view.selection.contains(&r) {
+                    inf_view.selection = std::iter::once(r).collect();
+                }
+            }
+            igOpenPopup(const_cstr!("ctx").as_ptr());
+        }
     }
 }
 
@@ -1086,6 +1093,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             // 다이얼로그가 닫힌 후 처리
             if should_confirm {
                 // 데이터를 복사해서 처리
+                println!("draw_id_input_dialog: focused == {:?}", inf_view.focused);
                 let mut object = id_input.object.clone();
                 let id = id_input.id.clone();
                 let position = id_input.position;
