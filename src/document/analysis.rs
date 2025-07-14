@@ -99,7 +99,7 @@ impl Analysis {
             let tx = tx;        // move sender into thread
 
             //let dgraph = dgraph::calc(&model); // calc dgraph from model.
-            let dgraph = DGraphBuilder::convert(&topology).expect("dgraph conversion failed");
+            let dgraph = DGraphBuilder::convert(&topology, &model).expect("dgraph conversion failed");
             let dgraph = Arc::new(dgraph);
 
             info!("Dgraph successful with {:?} nodes", dgraph.rolling_inf.nodes.len());

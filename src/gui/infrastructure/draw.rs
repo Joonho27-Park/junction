@@ -199,9 +199,9 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
 
             if obj.functions.iter().any(|f| matches!(f, Function::Detector)) {
                 detectors.push((pta, obj, selected, preview, state));
-            } else if obj.functions.iter().any(|f| matches!(f, Function::MainSignal { .. } | Function::ShiftingSignal { .. })) {
+            } else if obj.functions.iter().any(|f| matches!(f, Function::Signal { .. })) {
                 signals.push((pta, obj, selected, preview, state));
-            } else if obj.functions.iter().any(|f| matches!(f, Function::Switch)) {
+            } else if obj.functions.iter().any(|f| matches!(f, Function::Switch { .. })) {
                 switches.push((pta, obj, selected, preview, state));
             }
         }

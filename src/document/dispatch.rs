@@ -393,11 +393,24 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
             InfrastructureLogEvent::Wait(dt) => { t += dt; if t > time { break; } },
             InfrastructureLogEvent::Authority(sig_d,(main,dist)) => {
                 if let Some(pta) = dgraph.object_ids.get_by_left(sig_d) {
-                    let state = vec![
-                        if main.is_some() { ObjectState::SignalProceed } else { ObjectState::SignalStop },
-                        if dist.is_some() { ObjectState::DistantProceed } else { ObjectState::DistantStop },
-                    ];
-                    object_state.insert(*pta,state);
+                    // has_distant 정보 필요
+                    let has_distant = if let rolling_inf::StaticObject::Signal { has_distant } = dgraph.rolling_inf.objects[*sig_d] {
+                        has_distant
+                    } else { false };
+                    let mut state = Vec::new();
+                    if main.is_some() {
+                        state.push(ObjectState::SignalProceed);
+                    } else {
+                        state.push(ObjectState::SignalStop);
+                    }
+                    if has_distant {
+                        if dist.is_some() {
+                            state.push(ObjectState::DistantProceed);
+                        } else {
+                            state.push(ObjectState::DistantStop);
+                        }
+                    }
+                    object_state.insert(*pta, state);
                 }
             },
             InfrastructureLogEvent::Reserved(tvd,b) => {

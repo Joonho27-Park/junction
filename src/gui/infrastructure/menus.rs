@@ -74,8 +74,8 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
     for f in obj.functions.iter() {
         match f {
             Function::Detector => { widgets::show_text("Detector"); },
-            Function::MainSignal { has_distant, id: _ } => {
-                widgets::show_text("Main signal");
+            Function::Signal { has_distant, id: _ } => {
+                widgets::show_text("Signal");
                 let mut has_distant = *has_distant;
                 unsafe {
                     igCheckbox(const_cstr!("Distant signal").as_ptr(), &mut has_distant);
@@ -84,25 +84,14 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
                     }
                 }
             }
-            Function::ShiftingSignal { has_distant, id: _ } => {
-                widgets::show_text("Main signal");
-                let mut has_distant = *has_distant;
-                unsafe {
-                    igCheckbox(const_cstr!("Distant signal").as_ptr(), &mut has_distant);
-                    if igIsItemEdited() {
-                        set_distant = Some(has_distant);
-                    }
-                }
-            }
-            Function::Switch => {
+            Function::Switch { id: _ } => {
                 widgets::show_text("Switch");
-                // Switch는 has_distant 필드가 없으므로 간단히 표시만 함
             }
         }
     }
     if let Some(d) = set_distant {
         analysis.edit_model(|new| {
-            new.objects.get_mut(&pta).unwrap().functions = vec![Function::MainSignal { has_distant: d, id: None }];
+            new.objects.get_mut(&pta).unwrap().functions = vec![Function::Signal { has_distant: d, id: None }];
             None
         });
     }

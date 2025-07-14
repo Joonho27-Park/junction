@@ -47,32 +47,62 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
             tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
             functions: vec![func.clone()],
             id: None,
+            signal_props: None,
+            switch_props: None,
+            placed_angle: None,
         };
-        obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
+        obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
         //println!("ADding object {:?}", obj);
-        model.objects.insert(round_coord(obj.loc), obj);
+        model.objects.insert(round_coord(obj.loc), obj.clone());
 
-        if matches!(func, Function::MainSignal { .. } ) {
+        // 신호기 배치 시 detector는 자동으로 추가하지 않음 (수동으로 배치하도록 변경)
+        // if let Function::Signal { .. } = func {
+        //     if let Some(signal_props) = obj.signal_props.as_ref() {
+        //         match signal_props.signal_type {
+        //             SignalType::Home | SignalType::Departure => {
+        //                 let mut obj = objects::Object {
+        //                     loc: pt, 
+        //                     tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
+        //                     functions: vec![Function::Detector],
+        //                     id: None,
+        //                     signal_props: None,
+        //                     switch_props: None,
+        //                     placed_angle: None,
+        //                 };
+        //                 obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
+        //                 //println!("ADding object {:?}", obj);
+        //                 model.objects.insert(round_coord(obj.loc), obj.clone());
+        //             },
+        //             SignalType::Shunting => {
+        //                 let mut obj = objects::Object {
+        //                     loc: pt, 
+        //                     tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
+        //                     functions: vec![Function::Detector],
+        //                     id: None,
+        //                     signal_props: None,
+        //                     switch_props: None,
+        //                     placed_angle: None,
+        //                 };
+        //                 obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
+        //                 //println!("ADding object {:?}", obj);
+        //                 model.objects.insert(round_coord(obj.loc), obj.clone());
+        //             },
+        //         }
+        //     }
+        // }
+        if matches!(func, Function::Switch { .. } ) {
             let mut obj = objects::Object {
                 loc: pt, 
                 tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
                 functions: vec![Function::Detector],
                 id: None,
+                signal_props: None,
+                switch_props: None,
+                placed_angle: None,
             };
-            obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
+            obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
             //println!("ADding object {:?}", obj);
-            model.objects.insert(round_coord(obj.loc), obj);
-        }
-        if matches!(func, Function::ShiftingSignal { .. } ) {
-            let mut obj = objects::Object {
-                loc: pt, 
-                tangent: glm::vec2(tangent.x.round() as _, tangent.y.round() as _),
-                functions: vec![Function::Detector],
-                id: None,
-            };
-            obj.move_to(&model, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
-            //println!("ADding object {:?}", obj);
-            model.objects.insert(round_coord(obj.loc), obj);
+            model.objects.insert(round_coord(obj.loc), obj.clone());
         }
     }
 
