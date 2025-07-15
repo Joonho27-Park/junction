@@ -399,17 +399,38 @@ pub fn set_selection_window(inf_view :&mut InfView, analysis :&Analysis, a :ImVe
 pub fn move_selected_objects(analysis :&mut Analysis, inf_view :&mut InfView, to :PtC) {
     let mut model = analysis.model().clone();
     let mut changed_ptas = Vec::new();
+    
+    // 선택된 객체들의 평균 위치 계산
+    let mut total_pos = glm::vec2(0.0, 0.0);
+    let mut count = 0;
     for id in inf_view.selection.iter() {
         match id {
             Ref::Object(pta) => {
-                let mut obj = model.objects.get_mut(pta).unwrap().clone();
-                obj.move_to(&model, analysis, obj.loc + delta);
-                let new_pta = round_coord(obj.loc);
-                model.objects.remove(pta);
-                model.objects.insert(new_pta,obj);
-                if *pta != new_pta { changed_ptas.push((*pta,new_pta)); }
+                if let Some(obj) = model.objects.get(pta) {
+                    total_pos += obj.loc;
+                    count += 1;
+                }
             },
             _ => {},
+        }
+    }
+    
+    if count > 0 {
+        let avg_pos = total_pos / count as f32;
+        let delta = to - avg_pos;
+        
+        for id in inf_view.selection.iter() {
+            match id {
+                Ref::Object(pta) => {
+                    let mut obj = model.objects.get_mut(pta).unwrap().clone();
+                    obj.move_to(&model, analysis, obj.loc + delta);
+                    let new_pta = round_coord(obj.loc);
+                    model.objects.remove(pta);
+                    model.objects.insert(new_pta,obj);
+                    if *pta != new_pta { changed_ptas.push((*pta,new_pta)); }
+                },
+                _ => {},
+            }
         }
     }
 

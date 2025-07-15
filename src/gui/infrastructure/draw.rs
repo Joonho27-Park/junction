@@ -266,7 +266,7 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
     let sight_color = config.color_u32(RailUIColorName::CanvasTrainSight);
     
     // 열차를 선로 위쪽에 위치시키기 위한 오프셋 거리
-    let offset_distance = 0.5;
+    let offset_distance = 0.2;
     
     for t in instant.trains.iter() {
         // 안전장치: train이 비어있으면 건너뛰기
@@ -274,7 +274,7 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
             continue;
         }
         
-        // 1. 각 점마다 보간 normal 계산
+        // 1. 기차의 진행 방향을 파악하여 적절한 normal 계산
         let mut avg_normals = Vec::new();
         let n = t.lines.len() + 1; // 점 개수 = 선분 개수 + 1
 
@@ -290,7 +290,37 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
         // points, avg_normals 생성 후
         if points.len() < 2 { continue; } // 최소 2개 점 필요
 
-        // 각 점의 normal 계산
+        // 기차의 전체 진행 방향 파악 (각 선분의 방향을 고려)
+        let overall_direction = if t.lines.len() > 0 {
+            // 모든 선분의 방향을 평균하여 전체 진행 방향 계산
+            let mut total_direction = glm::vec2(0.0, 0.0);
+            let mut valid_segments = 0;
+            
+            for &(p1, p2) in &t.lines {
+                let segment_direction = p2 - p1;
+                let length = glm::length(&segment_direction);
+                if length > 0.0 {
+                    total_direction += glm::normalize(&segment_direction);
+                    valid_segments += 1;
+                }
+            }
+            
+            if valid_segments > 0 {
+                let avg_direction = total_direction / valid_segments as f32;
+                let length = glm::length(&avg_direction);
+                if length > 0.0 {
+                    glm::normalize(&avg_direction)
+                } else {
+                    glm::vec2(1.0, 0.0) // 기본값
+                }
+            } else {
+                glm::vec2(1.0, 0.0) // 기본값
+            }
+        } else {
+            glm::vec2(1.0, 0.0) // 기본값
+        };
+
+        // 각 점의 normal 계산 (기차 진행 방향 고려)
         for i in 0..n {
             // 안전장치: 인덱스 범위 체크
             if i >= points.len() {
@@ -341,23 +371,31 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
                 glm::vec2(1.0, 0.0) // 기본값
             };
             
-            // 각각의 normal
+            // 각각의 normal (기차 진행 방향 고려)
             let prev_normal = glm::vec2(-prev_tangent.y, prev_tangent.x);
             let next_normal = glm::vec2(-next_tangent.y, next_tangent.x);
+            
+            // 기차 진행 방향과 normal의 일치성 확인
+            // 기차가 우측에서 좌측으로 이동하면 normal을 반대로 사용
+            let direction_factor = if glm::dot(&overall_direction, &prev_normal) > 0.0 {
+                1.0
+            } else {
+                -1.0
+            };
             
             // 평균 normal 계산 (안전장치 추가)
             let avg_normal_vec = prev_normal + next_normal;
             let avg_length = glm::length(&avg_normal_vec);
             let avg_normal = if avg_length > 0.0 {
-                glm::normalize(&avg_normal_vec)
+                glm::normalize(&avg_normal_vec) * direction_factor
             } else {
-                glm::vec2(0.0, 1.0) // 기본 위쪽 방향
+                glm::vec2(0.0, 1.0) * direction_factor // 기본 위쪽 방향
             };
             
             avg_normals.push(avg_normal);
         }
 
-        // 2. 각 선분을 그릴 때, 시작점과 끝점에서 각각 보간 normal로 offset
+        // 2. 각 선분을 그릴 때, 해당 선분의 방향을 고려하여 offset 계산
         for i in 0..t.lines.len() {
             // 반드시 avg_normals.len() > i+1, points.len() > i+1
             if i+1 >= avg_normals.len() || i+1 >= points.len() { break; }
@@ -372,8 +410,31 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
                 continue;
             }
             
-            let p1_offset = p1 + offset_distance * n1;
-            let p2_offset = p2 + offset_distance * n2;
+            // 이 선분의 방향 계산
+            let segment_direction = p2 - p1;
+            let segment_length = glm::length(&segment_direction);
+            let segment_tangent = if segment_length > 0.0 {
+                glm::normalize(&segment_direction)
+            } else {
+                glm::vec2(1.0, 0.0)
+            };
+            
+            // 이 선분의 normal 계산 (기차 진행 방향 고려)
+            let segment_normal = glm::vec2(-segment_tangent.y, segment_tangent.x);
+            
+            // 기차가 우측에서 좌측으로 이동하는지 확인
+            // X 좌표가 감소하는 방향이면 우측에서 좌측으로 이동
+            let is_right_to_left = segment_direction.x < 0.0;
+            
+            // 방향에 따라 normal 조정
+            let adjusted_normal = if is_right_to_left {
+                -segment_normal
+            } else {
+                segment_normal
+            };
+            
+            let p1_offset = p1 + offset_distance * adjusted_normal;
+            let p2_offset = p2 + offset_distance * adjusted_normal;
             
             unsafe {
                 ImDrawList_AddLine(
@@ -385,21 +446,44 @@ pub fn trains(config :&Config, instant :&Instant, inf_view :&InfView, draw :&Dra
             }
         }
 
-        // 시야선도 마지막 점의 보간 normal 사용
+        // 시야선도 마지막 점의 방향을 고려하여 normal 계산
         if let Some(front) = t.get_front() {
-            let n = avg_normals.last().copied().unwrap_or(glm::vec2(0.0, 1.0));
-            
-            // 안전장치: NaN이나 Inf 체크
-            if !n.x.is_nan() && !n.y.is_nan() && !n.x.is_infinite() && !n.y.is_infinite() {
-                let front_offset = front + offset_distance * n;
-                for pta in t.signals_sighted.iter() {
-                    unsafe {
-                        ImDrawList_AddLine(
-                            draw.draw_list,
-                            draw.pos + inf_view.view.world_ptc_to_screen(front_offset),
-                            draw.pos + inf_view.view.world_ptc_to_screen(unround_coord(*pta)),
-                            sight_color, 2.0*2.0
-                        );
+            // 마지막 선분의 방향을 사용하여 normal 계산
+            if let Some(last_line) = t.lines.last() {
+                let (p1, p2) = *last_line;
+                let segment_direction = p2 - p1;
+                let segment_length = glm::length(&segment_direction);
+                let segment_tangent = if segment_length > 0.0 {
+                    glm::normalize(&segment_direction)
+                } else {
+                    glm::vec2(1.0, 0.0)
+                };
+                
+                let segment_normal = glm::vec2(-segment_tangent.y, segment_tangent.x);
+                
+                // 기차가 우측에서 좌측으로 이동하는지 확인
+                let is_right_to_left = segment_direction.x < 0.0;
+                
+                // 방향에 따라 normal 조정
+                let adjusted_normal = if is_right_to_left {
+                    -segment_normal
+                } else {
+                    segment_normal
+                };
+                
+                // 안전장치: NaN이나 Inf 체크
+                if !adjusted_normal.x.is_nan() && !adjusted_normal.y.is_nan() && 
+                   !adjusted_normal.x.is_infinite() && !adjusted_normal.y.is_infinite() {
+                    let front_offset = front + offset_distance * adjusted_normal;
+                    for pta in t.signals_sighted.iter() {
+                        unsafe {
+                            ImDrawList_AddLine(
+                                draw.draw_list,
+                                draw.pos + inf_view.view.world_ptc_to_screen(front_offset),
+                                draw.pos + inf_view.view.world_ptc_to_screen(unround_coord(*pta)),
+                                sight_color, 2.0*2.0
+                            );
+                        }
                     }
                 }
             }
