@@ -1075,10 +1075,12 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 if igInputText(const_cstr!("##id").as_ptr(), 
                               id_buffer.as_mut_ptr() as *mut _, 
                               id_buffer.len(),
-                              0 as _, None, std::ptr::null_mut()) {
+                              ImGuiInputTextFlags__ImGuiInputTextFlags_EnterReturnsTrue as _,
+                               None, std::ptr::null_mut()) {
                     let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
                     id_buffer.truncate(terminator);
                     id_input.id = String::from_utf8_unchecked(id_buffer);
+                    should_confirm=true;
                 }
                 
                 igSpacing();
@@ -1097,11 +1099,11 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 }
                 
                 // Enter 키로 확인, Escape 키로 취소
-                if igIsKeyPressed(13 as _, false) { // Enter
-                    should_confirm = true;
-                }
+                //if igIsKeyPressed(13 as _, false) { // Enter
+                    //should_confirm = true;
+                //}
                 
-                if igIsKeyPressed(27 as _, false) { // Escape
+                if !igIsItemActive() && igIsKeyPressed(ImGuiKey__ImGuiKey_Escape as _, false) { // Escape
                     should_cancel = true;
                 }
             }
