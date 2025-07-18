@@ -121,6 +121,10 @@ pub fn main_menu(app :&mut App) {
                                   std::ptr::null(), app.windows.log, true) {
                     app.windows.log = !app.windows.log;
                 }
+                if igMenuItemBool(const_cstr!("Sidebar").as_ptr(), 
+                                  const_cstr!("F2").as_ptr(), app.windows.sidebar.is_open, true) {
+                    app.windows.sidebar.is_open = !app.windows.sidebar.is_open;
+                }
                 igEndMenu();
             }
             if igBeginMenu(const_cstr!("Tools").as_ptr(), true) {
