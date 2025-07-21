@@ -435,6 +435,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
                                         position: obj.loc.clone(),
+                                        function_type: Function::Signal { has_distant: false, id: None },
                                     });
                                 },
                                 Some(SignalType::Shunting) => {
@@ -443,6 +444,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
                                         position: obj.loc.clone(),
+                                        function_type: Function::Signal { has_distant: false, id: None },
                                     });
                                 },
                                 _ => {}
@@ -453,6 +455,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                 object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                 id: String::new(),
                                 position: obj.loc.clone(),
+                                function_type: Function::Switch { id: None },
                             });
                         } else {
                         // 그 외 객체는 바로 배치
@@ -850,6 +853,40 @@ fn dispatch_view_ref(dispatch_view :&Option<DispatchView>) -> Option<DispatchRef
     }
 }
 
+fn is_id_duplicate(analysis: &Analysis, new_id: &str, exclude_position: Option<PtC>, function_type: &Function) -> bool {
+    if new_id.is_empty() {
+        return false; // Empty IDs are allowed
+    }
+    
+    for (pos, obj) in analysis.model().objects.iter() {
+        // Skip the object being edited (if any)
+        if let Some(exclude_pos) = exclude_position {
+            if round_coord(exclude_pos) == *pos {
+                continue;
+            }
+        }
+        
+        // Check all functions in the object for IDs
+        for function in &obj.functions {
+            match (function, function_type) {
+                // Only check for duplicates within the same function type
+                (Function::Signal { id: Some(id), .. }, Function::Signal { .. }) => {
+                    if id == new_id {
+                        return true;
+                    }
+                },
+                (Function::Switch { id: Some(id) }, Function::Switch { .. }) => {
+                    if id == new_id {
+                        return true;
+                    }
+                },
+                _ => {} // Different function types can have the same ID
+            }
+        }
+    }
+    false
+}
+
 fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
     unsafe {
         if let Some(ref mut id_input) = inf_view.id_input {
@@ -864,6 +901,9 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             let mut open = true;
             let mut should_confirm = false;
             let mut should_cancel = false;
+            
+            // Check if current ID is duplicate (only within same function type)
+            let is_duplicate = is_id_duplicate(analysis, &id_input.id, Some(id_input.position), &id_input.function_type);
             
             if igBegin(const_cstr!("Signal ID").as_ptr(), &mut open as _, 0 as _) {
                 widgets::show_text("Enter signal ID:");
@@ -882,12 +922,28 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                     id_input.id = String::from_utf8_unchecked(id_buffer);
                 }
                 
+                // Show duplicate warning if applicable
+                if is_duplicate && !id_input.id.is_empty() {
+                    igPushStyleColor(ImGuiCol__ImGuiCol_Text as _, ImVec4 { x: 1.0, y: 0.0, z: 0.0, w: 1.0 }); // Red color
+                    widgets::show_text("Warning: This ID already exists!");
+                    igPopStyleColor(1);
+                }
+                
                 igSpacing();
                 igSpacing();
                 
-                // 확인 버튼
-                if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                // 확인 버튼 - disable if duplicate
+                let ok_enabled = !is_duplicate || id_input.id.is_empty();
+                if !ok_enabled {
+                    igPushStyleVarFloat(ImGuiStyleVar__ImGuiStyleVar_Alpha as _, 0.5);
+                }
+                
+                if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) && ok_enabled {
                     should_confirm = true;
+                }
+                
+                if !ok_enabled {
+                    igPopStyleVar(1);
                 }
                 
                 igSameLine(0.0, 10.0);
@@ -898,7 +954,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 }
                 
                 // Enter 키로 확인, Escape 키로 취소
-                if igIsKeyPressed(13 as _, false) { // Enter
+                if igIsKeyPressed(13 as _, false) && ok_enabled { // Enter
                     should_confirm = true;
                 }
                 

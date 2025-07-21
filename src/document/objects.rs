@@ -487,6 +487,43 @@ impl Object {
                                 ImDrawList_PathLineTo(draw_list, start_pt);
                                 // 외곽선만 그림(채우지 않음)
                                 ImDrawList_PathStroke(draw_list, c, true, 2.0);
+
+                                // ===== 입환신호기 ID 텍스트 렌더링 =====
+                                // 신호기 ID가 있으면 신호기 기둥 아래에 텍스트를 표시
+                                if let Function::Signal { id: Some(id), .. } = f {
+                                    // ===== 신호기 방향에 따른 텍스트 위치 조정 =====
+                                    // 신호기가 왼쪽을 향하는지 오른쪽을 향하는지에 따라 텍스트 위치가 달라짐
+                                    let id_len = id.len() as f32;
+
+                                    // X축 오프셋: 신호기 방향에 따라 다르게 적용
+                                    let x_offset = if self.tangent.x < 0 {
+                                        // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
+                                        0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
+                                    } else {
+                                        // 신호기가 오른쪽을 향할 때: 텍스트를 왼쪽으로 배치
+                                        - 3.0 - id_len * 9.0 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
+                                    };
+
+                                    // Y축 오프셋: 신호기 방향과 관계없이 동일
+                                    let y_offset = if self.tangent.x < 0 {
+                                        -7.5 // 왼쪽을 향할 때 y offset -7.5
+                                    } else {
+                                        -7.5 // 오른쪽을 향할 때 y offset -7.5
+                                    };
+
+                                    // 최종 텍스트 위치 계산
+                                    let screen_offset = ImVec2 { x: x_offset, y: y_offset };
+                                    let text_pos = p + screen_offset;
+
+                                    // 텍스트 색상: 검은색 (CanvasText)
+                                    let text_color = config.color_u32(RailUIColorName::CanvasText);
+
+                                    // CString으로 변환 (ImGui 텍스트 렌더링용)
+                                    let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
+
+                                    // 텍스트 렌더링
+                                    ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
+                                }
                             },
                             None => {
                                 // ===== 기본 신호기 렌더링 =====

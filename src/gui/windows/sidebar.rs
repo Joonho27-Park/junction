@@ -543,7 +543,50 @@ fn render_props_tab(document: &mut Document) {
             let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
             id_buffer.truncate(terminator);
             let new_id = String::from_utf8_unchecked(id_buffer);
-            if new_id != current_id {
+            
+            // Check for duplicate ID (only within same function type)
+            let is_duplicate = if !new_id.is_empty() && new_id != current_id {
+                let mut duplicate_found = false;
+                for (pos, obj) in document.analysis.model().objects.iter() {
+                    if *pos == pta {
+                        continue; // Skip the current object being edited
+                    }
+                    for function in &obj.functions {
+                        // Only check for duplicates within the same function type
+                        if is_signal {
+                            if let Function::Signal { id: Some(id), .. } = function {
+                                if *id == new_id {
+                                    duplicate_found = true;
+                                    break;
+                                }
+                            }
+                        } else if is_switch {
+                            if let Function::Switch { id: Some(id) } = function {
+                                if *id == new_id {
+                                    duplicate_found = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if duplicate_found {
+                        break;
+                    }
+                }
+                duplicate_found
+            } else {
+                false
+            };
+            
+            // Show warning if duplicate
+            if is_duplicate {
+                igPushStyleColor(ImGuiCol__ImGuiCol_Text as _, ImVec4 { x: 1.0, y: 0.0, z: 0.0, w: 1.0 }); // Red color
+                widgets::show_text("Warning: This ID already exists!");
+                igPopStyleColor(1);
+            }
+            
+            // Only update if not duplicate or if clearing the ID
+            if new_id != current_id && (!is_duplicate || new_id.is_empty()) {
                 document.analysis.edit_model(|m| {
                     if let Some(obj) = m.objects.get_mut(&pta) {
                         for f in &mut obj.functions {

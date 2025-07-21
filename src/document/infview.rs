@@ -22,6 +22,7 @@ pub struct IdInputState {
     pub object: Object,
     pub id: String,
     pub position: PtC,
+    pub function_type: Function,
 }
 
 #[derive(Debug)]
