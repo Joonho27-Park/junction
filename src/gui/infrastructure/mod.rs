@@ -922,12 +922,14 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                               id_buffer.as_mut_ptr() as *mut _, 
                               id_buffer.len(),
                               ImGuiInputTextFlags__ImGuiInputTextFlags_EnterReturnsTrue as _,
-                               None, std::ptr::null_mut()) && ok_enabled {
-                    let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
-                    id_buffer.truncate(terminator);
-                    id_input.id = String::from_utf8_unchecked(id_buffer);
-                    should_confirm=true;
+                                None, std::ptr::null_mut()) {
+                    if ok_enabled {
+                        should_confirm=true;
+                    }
                 }
+                let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
+                id_buffer.truncate(terminator);
+                id_input.id = String::from_utf8_unchecked(id_buffer);
                 
                 // Show duplicate warning if applicable
                 if is_duplicate && !id_input.id.is_empty() {
@@ -973,7 +975,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             // 다이얼로그가 닫힌 후 처리
             if should_confirm {
                 // 데이터를 복사해서 처리
-                println!("draw_id_input_dialog: focused == {:?}", inf_view.focused);
+                println!("draw_id_input_dialog: id_input.id == {:?}", id_input.id);
                 let mut object = id_input.object.clone();
                 let id = id_input.id.clone();
                 let position = id_input.position;
