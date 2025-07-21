@@ -23,11 +23,17 @@ pub struct SidebarWindow {
     // Movement tracking
     pub previous_pos: Option<ImVec2>,
     pub is_moving: bool,
+    // Mouse state tracking (saved during render)
+    pub mouse_hovered: bool,
+    pub mouse_position: ImVec2,
+    pub mouse_in_sidebar_area: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum DockPosition {
     None,
+    Top,
+    Bottom,
     Left,
     Right,
 }
@@ -49,10 +55,14 @@ impl SidebarWindow {
             // Movement tracking
             previous_pos: None,
             is_moving: false,
+            // Mouse state tracking (saved during render)
+            mouse_hovered: false,
+            mouse_position: ImVec2 { x: 0.0, y: 0.0 },
+            mouse_in_sidebar_area: false,
         }
     }
 
-    pub fn render(&mut self, document: &mut Document) {
+    pub fn render(&mut self, document: &mut Document, dispatch_dock_position: Option<DockPosition>) {
         if !self.is_open {
             return;
         }
@@ -61,27 +71,47 @@ impl SidebarWindow {
             let io = igGetIO();
             let display_size = (*io).DisplaySize;
             
-            // Check for docking
-            self.check_docking(display_size);
-            
             // Window flags
             let mut window_flags = ImGuiWindowFlags__ImGuiWindowFlags_NoCollapse as i32;
             
             if self.is_docked {
-                // Docked window settings
+                // Docked window settings - fixed size
                 window_flags |= ImGuiWindowFlags__ImGuiWindowFlags_NoMove as i32;
                 window_flags |= ImGuiWindowFlags__ImGuiWindowFlags_NoResize as i32;
                 
+                // 메뉴바 높이 (File, Edit, View, Tools 메뉴)
+                let menu_bar_height = 25.0; // 고정된 메뉴바 높이 + 여백
+                
                 match self.dock_position {
                     DockPosition::Right => {
-                        let docked_pos = ImVec2 { x: display_size.x - 350.0, y: 0.0 };
-                        let docked_size = ImVec2 { x: 350.0, y: display_size.y };
+                        // Check if dispatch is docked to right, if so, make sidebar smaller
+                        let sidebar_width = if dispatch_dock_position == Some(DockPosition::Right) { 250.0 } else { 350.0 };
+                        let docked_pos = ImVec2 { x: display_size.x - sidebar_width, y: menu_bar_height };
+                        let docked_size = ImVec2 { x: sidebar_width, y: display_size.y - menu_bar_height };
                         igSetNextWindowPos(docked_pos, ImGuiCond__ImGuiCond_Always as _, ImVec2 { x: 0.0, y: 0.0 });
                         igSetNextWindowSize(docked_size, ImGuiCond__ImGuiCond_Always as _);
                     },
                     DockPosition::Left => {
-                        let docked_pos = ImVec2 { x: 0.0, y: 0.0 };
-                        let docked_size = ImVec2 { x: 350.0, y: display_size.y };
+                        // Check if dispatch is docked to left, if so, make sidebar smaller
+                        let sidebar_width = if dispatch_dock_position == Some(DockPosition::Left) { 250.0 } else { 350.0 };
+                        let docked_pos = ImVec2 { x: 0.0, y: menu_bar_height };
+                        let docked_size = ImVec2 { x: sidebar_width, y: display_size.y - menu_bar_height };
+                        igSetNextWindowPos(docked_pos, ImGuiCond__ImGuiCond_Always as _, ImVec2 { x: 0.0, y: 0.0 });
+                        igSetNextWindowSize(docked_size, ImGuiCond__ImGuiCond_Always as _);
+                    },
+                    DockPosition::Top => {
+                        // Check if dispatch is docked to top, if so, make sidebar smaller
+                        let sidebar_height = if dispatch_dock_position == Some(DockPosition::Top) { 200.0 } else { 300.0 };
+                        let docked_pos = ImVec2 { x: 0.0, y: menu_bar_height };
+                        let docked_size = ImVec2 { x: display_size.x, y: sidebar_height };
+                        igSetNextWindowPos(docked_pos, ImGuiCond__ImGuiCond_Always as _, ImVec2 { x: 0.0, y: 0.0 });
+                        igSetNextWindowSize(docked_size, ImGuiCond__ImGuiCond_Always as _);
+                    },
+                    DockPosition::Bottom => {
+                        // Check if dispatch is docked to bottom, if so, make sidebar smaller
+                        let sidebar_height = if dispatch_dock_position == Some(DockPosition::Bottom) { 200.0 } else { 300.0 };
+                        let docked_pos = ImVec2 { x: 0.0, y: display_size.y - sidebar_height };
+                        let docked_size = ImVec2 { x: display_size.x, y: sidebar_height };
                         igSetNextWindowPos(docked_pos, ImGuiCond__ImGuiCond_Always as _, ImVec2 { x: 0.0, y: 0.0 });
                         igSetNextWindowSize(docked_size, ImGuiCond__ImGuiCond_Always as _);
                     },
@@ -94,6 +124,31 @@ impl SidebarWindow {
             }
 
             if igBegin(const_cstr!("Sidebar").as_ptr(), &mut self.is_open as *mut bool, window_flags) {
+                // 마우스 호버 상태 확인 및 저장. docking 확인을 하는 시점에서 하면 문제 발생. 따라서 렌더링 후 확인.
+                self.mouse_hovered = self.is_mouse_hovered();
+                self.mouse_position = self.get_mouse_position();
+                self.mouse_in_sidebar_area = self.is_mouse_in_sidebar_area(display_size, dispatch_dock_position);
+                
+                // Check for docking (after saving mouse state)
+                self.check_docking(display_size);
+                
+                // 디버깅 정보 (개발 중에만 사용)
+                /*
+                if cfg!(debug_assertions) {
+                    igText(const_cstr!("Debug Info:").as_ptr());
+                    igText(const_cstr!("Mouse Hovered: ").as_ptr());
+                    igSameLine(0.0, 5.0);
+                    igText(if self.mouse_hovered { const_cstr!("Yes").as_ptr() } else { const_cstr!("No").as_ptr() });
+                    igText(const_cstr!("In Sidebar Area: ").as_ptr());
+                    igSameLine(0.0, 5.0);
+                    igText(if self.mouse_in_sidebar_area { const_cstr!("Yes").as_ptr() } else { const_cstr!("No").as_ptr() });
+                    igText(const_cstr!("Mouse Pos: ").as_ptr());
+                    igSameLine(0.0, 5.0);
+                    widgets::show_text(&format!("({:.1}, {:.1})", self.mouse_position.x, self.mouse_position.y));
+                    igSeparator();
+                }
+                */
+                
                 // Tools Section
                 if render_section_header(const_cstr!("Tools").as_ptr(), 0.1, 0.2, 0.3, &mut self.tools_open) {
                     render_tools_tab(document);
@@ -133,38 +188,105 @@ impl SidebarWindow {
         }
     }
     
+    /// 사이드바 창 위에 마우스가 있는지 확인
+    pub fn is_mouse_hovered(&self) -> bool {
+        unsafe {
+            igIsWindowHovered(0)
+        }
+    }
+    
+    /// 마우스 위치를 가져오기
+    pub fn get_mouse_position(&self) -> ImVec2 {
+        unsafe {
+            igGetMousePos_nonUDT2().into()
+        }
+    }
+    
+    /// 특정 아이템 위에 마우스가 있는지 확인
+    pub fn is_item_hovered(&self) -> bool {
+        unsafe {
+            igIsItemHovered(0)
+        }
+    }
+    
+    /// 마우스가 사이드바 영역 내에 있는지 확인 (창 경계 기반)
+    pub fn is_mouse_in_sidebar_area(&self, display_size: ImVec2, dispatch_dock_position: Option<DockPosition>) -> bool {
+        let mouse_pos = self.get_mouse_position();
+        let menu_bar_height = 25.0; // 고정된 메뉴바 높이 + 여백
+        
+        if self.is_docked {
+            match self.dock_position {
+                DockPosition::Right => {
+                    let sidebar_width = if dispatch_dock_position == Some(DockPosition::Right) { 250.0 } else { 350.0 };
+                    mouse_pos.x >= display_size.x - sidebar_width && mouse_pos.x <= display_size.x &&
+                    mouse_pos.y >= menu_bar_height && mouse_pos.y <= display_size.y
+                },
+                DockPosition::Left => {
+                    let sidebar_width = if dispatch_dock_position == Some(DockPosition::Left) { 250.0 } else { 350.0 };
+                    mouse_pos.x >= 0.0 && mouse_pos.x <= sidebar_width &&
+                    mouse_pos.y >= menu_bar_height && mouse_pos.y <= display_size.y
+                },
+                DockPosition::Top => {
+                    let sidebar_height = if dispatch_dock_position == Some(DockPosition::Top) { 200.0 } else { 300.0 };
+                    mouse_pos.x >= 0.0 && mouse_pos.x <= display_size.x &&
+                    mouse_pos.y >= menu_bar_height && mouse_pos.y <= menu_bar_height + sidebar_height
+                },
+                DockPosition::Bottom => {
+                    let sidebar_height = if dispatch_dock_position == Some(DockPosition::Bottom) { 200.0 } else { 300.0 };
+                    mouse_pos.x >= 0.0 && mouse_pos.x <= display_size.x &&
+                    mouse_pos.y >= display_size.y - sidebar_height && mouse_pos.y <= display_size.y
+                },
+                DockPosition::None => false
+            }
+        } else {
+            // 플로팅 창의 경우 ImGui가 자동으로 처리하므로 단순히 호버 상태 확인
+            self.is_mouse_hovered()
+        }
+    }
+
     fn check_docking(&mut self, display_size: ImVec2) {
         if self.is_docked {
             return; // Already docked
         }
         
         let io = unsafe { igGetIO() };
-        let mouse_pos: ImVec2 = unsafe { igGetMousePos_nonUDT2().into() };
         
         // Check if mouse left button is held down (dragging)
         if unsafe { !(*io).MouseDown[0] } {
             return; // Not dragging
         }
         
-        // Check if we're actually dragging
         if unsafe { !igIsMouseDragging(0, 0.0) } {
             return; // Not dragging
         }
         
-        // Check if the sidebar window is being dragged (hovered and dragging)
-        if unsafe { !igIsWindowHovered(0) } {
+        // Check if the sidebar window is being dragged (using saved hover state)
+        if !self.mouse_hovered {
             return; // Not dragging the sidebar window
         }
         
+        // Check if mouse is near edges for docking
+        let menu_bar_height = 25.0;
+        
         // Check if mouse is near left edge
-        if mouse_pos.x <= self.dock_threshold {
+        if self.mouse_position.x <= self.dock_threshold {
             self.is_docked = true;
             self.dock_position = DockPosition::Left;
         }
         // Check if mouse is near right edge
-        else if mouse_pos.x >= display_size.x - self.dock_threshold {
+        else if self.mouse_position.x >= display_size.x - self.dock_threshold {
             self.is_docked = true;
             self.dock_position = DockPosition::Right;
+        }
+        // Check if mouse is near top edge (below menu bar)
+        else if self.mouse_position.y <= menu_bar_height + self.dock_threshold && self.mouse_position.y >= menu_bar_height {
+            self.is_docked = true;
+            self.dock_position = DockPosition::Top;
+        }
+        // Check if mouse is near bottom edge
+        else if self.mouse_position.y >= display_size.y - self.dock_threshold {
+            self.is_docked = true;
+            self.dock_position = DockPosition::Bottom;
         }
     }
     
