@@ -857,7 +857,7 @@ fn is_id_duplicate(analysis: &Analysis, new_id: &str, exclude_position: Option<P
     if new_id.is_empty() {
         return false; // Empty IDs are allowed
     }
-    
+
     for (pos, obj) in analysis.model().objects.iter() {
         // Skip the object being edited (if any)
         if let Some(exclude_pos) = exclude_position {
@@ -865,7 +865,7 @@ fn is_id_duplicate(analysis: &Analysis, new_id: &str, exclude_position: Option<P
                 continue;
             }
         }
-        
+
         // Check all functions in the object for IDs
         for function in &obj.functions {
             match (function, function_type) {
@@ -904,7 +904,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             
             // Check if current ID is duplicate (only within same function type)
             let is_duplicate = is_id_duplicate(analysis, &id_input.id, Some(id_input.position), &id_input.function_type);
-            
+
             if igBegin(const_cstr!("Signal ID").as_ptr(), &mut open as _, 0 as _) {
                 widgets::show_text("Enter signal ID:");
                 
@@ -912,14 +912,21 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 let mut id_buffer = id_input.id.clone().into_bytes();
                 id_buffer.push(0);
                 id_buffer.extend((0..50).map(|_| 0u8));
-                
+
+                let ok_enabled = !is_duplicate || id_input.id.is_empty();
+                if !ok_enabled {
+                    igPushStyleVarFloat(ImGuiStyleVar__ImGuiStyleVar_Alpha as _, 0.5);
+                }
+
                 if igInputText(const_cstr!("##id").as_ptr(), 
                               id_buffer.as_mut_ptr() as *mut _, 
                               id_buffer.len(),
-                              0 as _, None, std::ptr::null_mut()) {
+                              ImGuiInputTextFlags__ImGuiInputTextFlags_EnterReturnsTrue as _,
+                               None, std::ptr::null_mut()) && ok_enabled {
                     let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
                     id_buffer.truncate(terminator);
                     id_input.id = String::from_utf8_unchecked(id_buffer);
+                    should_confirm=true;
                 }
                 
                 // Show duplicate warning if applicable
@@ -928,16 +935,11 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                     widgets::show_text("Warning: This ID already exists!");
                     igPopStyleColor(1);
                 }
-                
+
                 igSpacing();
                 igSpacing();
                 
                 // 확인 버튼 - disable if duplicate
-                let ok_enabled = !is_duplicate || id_input.id.is_empty();
-                if !ok_enabled {
-                    igPushStyleVarFloat(ImGuiStyleVar__ImGuiStyleVar_Alpha as _, 0.5);
-                }
-                
                 if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) && ok_enabled {
                     should_confirm = true;
                 }
@@ -945,7 +947,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 if !ok_enabled {
                     igPopStyleVar(1);
                 }
-                
+
                 igSameLine(0.0, 10.0);
                 
                 // 취소 버튼
@@ -954,11 +956,11 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 }
                 
                 // Enter 키로 확인, Escape 키로 취소
-                if igIsKeyPressed(13 as _, false) && ok_enabled { // Enter
-                    should_confirm = true;
-                }
+                //if igIsKeyPressed(13 as _, false) { // Enter
+                    //should_confirm = true;
+                //}
                 
-                if igIsKeyPressed(27 as _, false) { // Escape
+                if !igIsItemActive() && igIsKeyPressed(ImGuiKey__ImGuiKey_Escape as _, false) { // Escape
                     should_cancel = true;
                 }
             }
