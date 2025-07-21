@@ -3,6 +3,7 @@ use crate::document::objects::*;
 use crate::document::infview::*;
 use crate::gui::mainmenu;
 use crate::gui::infrastructure::delete_selection;
+use crate::gui::windows::sidebar;
 use crate::file;
 use crate::document::*;
 
@@ -46,6 +47,11 @@ pub fn keys(app :&mut App) {
 
         if (*io).KeyCtrl && !(*io).KeyShift && igIsKeyPressed('O' as _, false) {
             mainmenu::load(app);
+        }
+
+        // 사이드바 토글 (F2 키)
+        if igIsKeyPressed(290 as _, false) { // F2 key code
+            app.windows.sidebar.is_open = !app.windows.sidebar.is_open;
         }
 
 

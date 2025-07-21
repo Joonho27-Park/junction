@@ -29,6 +29,7 @@ pub fn edit_plan(config :&Config,
                  inf_canvas :Option<&widgets::Draw>,
                  inf_view :&InfView,
                  analysis :&mut Analysis, 
+                 is_docking :&mut bool,
                  auto_dispatch :&mut AutoDispatchView) -> Option<Option<DispatchView>> {
     let plan_idx = auto_dispatch.plan_idx;
 
@@ -53,10 +54,25 @@ pub fn edit_plan(config :&Config,
         igSameLine(0.0,-1.0);
         plan_dispatches(config, analysis, auto_dispatch);
 
+        // Undock button in title bar when docked
+        igSameLine(0.0,-1.0);
+        if *is_docking {
+            let avail = igGetContentRegionAvail().x;
+            if avail > 100.0 {
+                let cur = igGetCursorPos().x;
+                igSetCursorPosX(cur + avail - 100.0);
+            }
+            if igButton(const_cstr!("Undock").as_ptr(), ImVec2::zero()) {
+                *is_docking = false;
+            }
+            igSameLine(0.0, -1.0);
+        }
+        
+        // Close button (x)
         let avail = igGetContentRegionAvail().x;
         if avail > 30.0 {
             let cur = igGetCursorPos().x;
-            igSetCursorPosX(cur + avail - 24.0);
+            igSetCursorPosX(cur + avail - 30.0);
         }
         if igButton(const_cstr!("\u{f00d}").as_ptr(), ImVec2::zero()) {
             return Some(None);

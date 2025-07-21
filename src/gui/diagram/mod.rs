@@ -32,10 +32,10 @@ pub fn default_viewport(graph :&DispatchOutput) -> DiagramViewport {
 }
 
 pub fn diagram_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfView,
-                    analysis :&Analysis, dv :&mut ManualDispatchView, graph :&DispatchOutput) -> Option<DiagramViewAction> {
+                    analysis :&Analysis, dv :&mut ManualDispatchView, graph :&DispatchOutput, is_docking :&mut bool) -> Option<DiagramViewAction> {
     let mut action = None;
     unsafe {
-        if let Some(toolbar_action) = diagram_toolbar(dv, graph) {
+        if let Some(toolbar_action) = diagram_toolbar(dv, graph, is_docking) {
             return Some(toolbar_action);
         }
         let size = igGetContentRegionAvail_nonUDT2().into();
@@ -129,7 +129,7 @@ fn scroll(draw :&Draw, viewport :&mut DiagramViewport) {
 }
 
 
-pub fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput) -> Option<DiagramViewAction> {
+pub fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput, is_docking :&mut bool) -> Option<DiagramViewAction> {
     unsafe {
         let label = if dv.play { const_cstr!("\u{f04c}") }
                     else { const_cstr!("\u{f04b}") };
@@ -140,10 +140,29 @@ pub fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput) -> O
         if igButton(const_cstr!("\u{f0b2}").as_ptr(), ImVec2::zero()) {
             dv.viewport = Some(default_viewport(graph));
         }
-        let avail = igGetContentRegionAvail().x;
-        if avail > 30.0 {
-            let cur = igGetCursorPos().x;
-            igSetCursorPosX(cur + avail - 24.0);
+
+        // Undock button in title bar when docked
+        igSameLine(0.0,-1.0);
+        if *is_docking {
+            let avail = igGetContentRegionAvail().x;
+            if avail > 100.0 {
+                let cur = igGetCursorPos().x;
+                igSetCursorPosX(cur + avail - 100.0);
+            }
+            if igButton(const_cstr!("Undock").as_ptr(), ImVec2::zero()) {
+                *is_docking = false;
+            }
+            igSameLine(0.0, -1.0);
+        }
+
+        // 닫기 버튼을 오른쪽 끝으로 정렬
+        igSameLine(0.0,-1.0);
+        unsafe {
+            let avail = igGetContentRegionAvail().x;
+            if avail > 30.0 {
+                let cur = igGetCursorPos().x;
+                igSetCursorPosX(cur + avail - 24.0);
+            }
         }
         if igButton(const_cstr!("\u{f00d}").as_ptr(), ImVec2::zero()) {
             return Some(DiagramViewAction::Close);

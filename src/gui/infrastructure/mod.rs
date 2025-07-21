@@ -28,206 +28,7 @@ pub enum Highlight {
     Tvd(usize),
 }
 
-fn show_object_properties_panel(analysis: &mut Analysis, inf_view: &InfView) {
-    use backend_glfw::imgui::*;
-    use crate::gui::widgets;
-    if inf_view.selection.len() != 1 {
-        return;
-    }
-    if let Some(Ref::Object(pta)) = inf_view.selection.iter().next() {
-        let (is_signal, is_switch, current_id, signal_props, switch_props, placed_angle) = match analysis.model().objects.get(pta) {
-            Some(obj) => {
-                let is_signal = obj.functions.iter().any(|f| matches!(f, Function::Signal { .. }));
-                let is_switch = obj.functions.iter().any(|f| matches!(f, Function::Switch { .. }));
-                let mut current_id = String::new();
-                if let Some(id) = obj.id.as_ref() {
-                    current_id = id.clone();
-                } else {
-                    for f in &obj.functions {
-                        match f {
-                            Function::Signal { id: Some(signal_id), .. } => {
-                                current_id = signal_id.clone();
-                                break;
-                            },
-                            Function::Switch { id: Some(switch_id) } => {
-                                current_id = switch_id.clone();
-                                break;
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-                (is_signal, is_switch, current_id, obj.signal_props.clone(), obj.switch_props.clone(), obj.placed_angle)
-            }
-            None => return,
-        };
 
-        if is_signal || is_switch {
-            unsafe {
-                let io = igGetIO();
-                let display_size = (*io).DisplaySize;
-                let panel_size = ImVec2 { x: 300.0, y: 180.0 };
-                let panel_pos = ImVec2 { x: display_size.x - panel_size.x - 20.0, y: 20.0 };
-                igSetNextWindowPos(panel_pos, ImGuiCond__ImGuiCond_Always as _, ImVec2 { x: 0.0, y: 0.0 });
-                igSetNextWindowSize(panel_size, ImGuiCond__ImGuiCond_Always as _);
-                let mut open = true;
-                if igBegin(const_cstr!("Object Properties").as_ptr(), &mut open as *mut bool, 0) {
-                    if !open {
-                        let selection = &mut (*(inf_view as *const _ as *mut InfView)).selection;
-                        selection.clear();
-                        igEnd();
-                        return;
-                    }
-                    // Object Type 표시
-                    let object_type = if is_signal { "Signal" } else if is_switch { "Switch" } else { "Unknown" };
-                    widgets::show_text(&format!("Object Type: {}", object_type));
-                    // ID 편집 기능
-                    widgets::show_text("ID:");
-                    igSameLine(0.0, 5.0);
-                    // ID 입력 필드
-                    let mut id_buffer = current_id.clone().into_bytes();
-                    id_buffer.push(0);
-                    id_buffer.extend((0..50).map(|_| 0u8));
-                    if igInputText(const_cstr!("##object_id").as_ptr(), id_buffer.as_mut_ptr() as *mut _, id_buffer.len(), 0 as _, None, std::ptr::null_mut()) {
-                        let terminator = id_buffer.iter().position(|&c| c == 0).unwrap();
-                        id_buffer.truncate(terminator);
-                        let new_id = String::from_utf8_unchecked(id_buffer);
-                        if new_id != current_id {
-                            analysis.edit_model(|m| {
-                                if let Some(obj) = m.objects.get_mut(pta) {
-                                    for f in &mut obj.functions {
-                                        match f {
-                                            Function::Signal { has_distant, id: ref mut signal_id } => {
-                                                *signal_id = Some(new_id.clone());
-                                            },
-                                            Function::Switch { id: ref mut switch_id } => {
-                                                *switch_id = Some(new_id.clone());
-                                            },
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                                None
-                            });
-                        }
-                    }
-                    if is_signal {
-                        if let Some(props) = &signal_props {
-                            widgets::show_text("Type:");
-                            igSameLine(0.0, 5.0);
-                            let mut signal_type = props.signal_type.clone();
-                            let signal_type_str = match signal_type {
-                                SignalType::Home => "Home",
-                                SignalType::Departure => "Departure",
-                                SignalType::Shunting => "Shunting",
-                            };
-                            let signal_type_cstr = std::ffi::CString::new(signal_type_str).unwrap();
-                            if igBeginCombo(const_cstr!("##signal_type").as_ptr(), signal_type_cstr.as_ptr(), 0) {
-                                if igSelectable(const_cstr!("Home").as_ptr(), matches!(signal_type, SignalType::Home), 0 as _, ImVec2::zero()) {
-                                    signal_type = SignalType::Home;
-                                }
-                                if igSelectable(const_cstr!("Departure").as_ptr(), matches!(signal_type, SignalType::Departure), 0 as _, ImVec2::zero()) {
-                                    signal_type = SignalType::Departure;
-                                }
-                                if igSelectable(const_cstr!("Shunting").as_ptr(), matches!(signal_type, SignalType::Shunting), 0 as _, ImVec2::zero()) {
-                                    signal_type = SignalType::Shunting;
-                                }
-                                igEndCombo();
-                            }
-                            widgets::show_text("Kind:");
-                            igSameLine(0.0, 5.0);
-                            let mut signal_kind = props.signal_kind.clone();
-                            let signal_kind_str = match signal_kind {
-                                SignalKind::Two => "Two",
-                                SignalKind::Three => "Three",
-                                SignalKind::Four => "Four",
-                            };
-                            let signal_kind_cstr = std::ffi::CString::new(signal_kind_str).unwrap();
-                            if igBeginCombo(const_cstr!("##signal_kind").as_ptr(), signal_kind_cstr.as_ptr(), 0) {
-                                if igSelectable(const_cstr!("Two").as_ptr(), matches!(signal_kind, SignalKind::Two), 0 as _, ImVec2::zero()) {
-                                    signal_kind = SignalKind::Two;
-                                }
-                                if igSelectable(const_cstr!("Three").as_ptr(), matches!(signal_kind, SignalKind::Three), 0 as _, ImVec2::zero()) {
-                                    signal_kind = SignalKind::Three;
-                                }
-                                if igSelectable(const_cstr!("Four").as_ptr(), matches!(signal_kind, SignalKind::Four), 0 as _, ImVec2::zero()) {
-                                    signal_kind = SignalKind::Four;
-                                }
-                                igEndCombo();
-                            }
-                            widgets::show_text("Direction:");
-                            igSameLine(0.0, 5.0);
-                            let mut direction = props.direction;
-                            let direction_str = match direction {
-                                TrackDirection::Left => "Left",
-                                TrackDirection::Right => "Right",
-                            };
-                            let direction_cstr = std::ffi::CString::new(direction_str).unwrap();
-                            if igBeginCombo(const_cstr!("##signal_direction").as_ptr(), direction_cstr.as_ptr(), 0) {
-                                if igSelectable(const_cstr!("Left").as_ptr(), matches!(direction, TrackDirection::Left), 0 as _, ImVec2::zero()) {
-                                    direction = TrackDirection::Left;
-                                }
-                                if igSelectable(const_cstr!("Right").as_ptr(), matches!(direction, TrackDirection::Right), 0 as _, ImVec2::zero()) {
-                                    direction = TrackDirection::Right;
-                                }
-                                igEndCombo();
-                            }
-                            if signal_type != props.signal_type || signal_kind != props.signal_kind || direction != props.direction {
-                                analysis.edit_model(|m| {
-                                    if let Some(obj) = m.objects.get_mut(pta) {
-                                        if let Some(props) = &mut obj.signal_props {
-                                            props.signal_type = signal_type;
-                                            props.signal_kind = signal_kind;
-                                            props.direction = direction;
-                                        }
-                                    }
-                                    None
-                                });
-                            }
-
-                        } else {
-                            widgets::show_text("No signal properties set.");
-                        }
-                    }
-                    if is_switch {
-                        if let Some(props) = &switch_props {
-                            widgets::show_text("Type:");
-                            igSameLine(0.0, 5.0);
-                            let mut switch_type = props.switch_type.clone();
-                            let switch_type_str = match switch_type {
-                                SwitchType::Single => "Single",
-                                SwitchType::Double => "Double",
-                            };
-                            let switch_type_cstr = std::ffi::CString::new(switch_type_str).unwrap();
-                            if igBeginCombo(const_cstr!("##switch_type").as_ptr(), switch_type_cstr.as_ptr(), 0) {
-                                if igSelectable(const_cstr!("Single").as_ptr(), matches!(switch_type, SwitchType::Single), 0 as _, ImVec2::zero()) {
-                                    switch_type = SwitchType::Single;
-                                }
-                                if igSelectable(const_cstr!("Double").as_ptr(), matches!(switch_type, SwitchType::Double), 0 as _, ImVec2::zero()) {
-                                    switch_type = SwitchType::Double;
-                                }
-                                igEndCombo();
-                            }
-                            if switch_type != props.switch_type {
-                                analysis.edit_model(|m| {
-                                    if let Some(obj) = m.objects.get_mut(pta) {
-                                        if let Some(props) = &mut obj.switch_props {
-                                            props.switch_type = switch_type;
-                                        }
-                                    }
-                                    None
-                                });
-                            }
-                        } else {
-                            widgets::show_text("No switch properties set.");
-                        }
-                    }
-                }
-                igEnd();
-            }
-        }
-    }
-}
 
 pub fn inf_view(config :&Config, 
                 analysis :&mut Analysis,
@@ -246,13 +47,13 @@ pub fn inf_view(config :&Config,
         interact(config, analysis, inf_view, &draw);
         draw_inf(config, analysis, inf_view, dispatch_view, &draw, preview_route);
         draw.end_draw();
-        // Add the properties panel for selected object
-        show_object_properties_panel(analysis, inf_view);
-        let pos_after = igGetCursorPos_nonUDT2().into();
-        let framespace = igGetFrameHeightWithSpacing() - igGetFrameHeight();
-        igSetCursorPos(pos_before + ImVec2 { x: 2.0*framespace, y: 2.0*framespace });
-        inf_toolbar(analysis, inf_view);
-        igSetCursorPos(pos_after);
+        // Object properties panel is now handled by the sidebar
+        // Toolbar moved to sidebar
+        // let pos_after = igGetCursorPos_nonUDT2().into();
+        // let framespace = igGetFrameHeightWithSpacing() - igGetFrameHeight();
+        // igSetCursorPos(pos_before + ImVec2 { x: 2.0*framespace, y: 2.0*framespace });
+        // inf_toolbar(analysis, inf_view);
+        // igSetCursorPos(pos_after);
         draw
     }
 }
@@ -634,6 +435,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
                                         position: obj.loc.clone(),
+                                        function_type: Function::Signal { has_distant: false, id: None },
                                     });
                                 },
                                 Some(SignalType::Shunting) => {
@@ -642,6 +444,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
                                         position: obj.loc.clone(),
+                                        function_type: Function::Signal { has_distant: false, id: None },
                                     });
                                 },
                                 _ => {}
@@ -652,6 +455,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                 object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                 id: String::new(),
                                 position: obj.loc.clone(),
+                                function_type: Function::Switch { id: None },
                             });
                         } else {
                         // 그 외 객체는 바로 배치
@@ -1049,6 +853,40 @@ fn dispatch_view_ref(dispatch_view :&Option<DispatchView>) -> Option<DispatchRef
     }
 }
 
+fn is_id_duplicate(analysis: &Analysis, new_id: &str, exclude_position: Option<PtC>, function_type: &Function) -> bool {
+    if new_id.is_empty() {
+        return false; // Empty IDs are allowed
+    }
+
+    for (pos, obj) in analysis.model().objects.iter() {
+        // Skip the object being edited (if any)
+        if let Some(exclude_pos) = exclude_position {
+            if round_coord(exclude_pos) == *pos {
+                continue;
+            }
+        }
+
+        // Check all functions in the object for IDs
+        for function in &obj.functions {
+            match (function, function_type) {
+                // Only check for duplicates within the same function type
+                (Function::Signal { id: Some(id), .. }, Function::Signal { .. }) => {
+                    if id == new_id {
+                        return true;
+                    }
+                },
+                (Function::Switch { id: Some(id) }, Function::Switch { .. }) => {
+                    if id == new_id {
+                        return true;
+                    }
+                },
+                _ => {} // Different function types can have the same ID
+            }
+        }
+    }
+    false
+}
+
 fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
     unsafe {
         if let Some(ref mut id_input) = inf_view.id_input {
@@ -1064,6 +902,9 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             let mut should_confirm = false;
             let mut should_cancel = false;
             
+            // Check if current ID is duplicate (only within same function type)
+            let is_duplicate = is_id_duplicate(analysis, &id_input.id, Some(id_input.position), &id_input.function_type);
+
             if igBegin(const_cstr!("Signal ID").as_ptr(), &mut open as _, 0 as _) {
                 widgets::show_text("Enter signal ID:");
                 
@@ -1083,14 +924,30 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                     should_confirm=true;
                 }
                 
+                // Show duplicate warning if applicable
+                if is_duplicate && !id_input.id.is_empty() {
+                    igPushStyleColor(ImGuiCol__ImGuiCol_Text as _, ImVec4 { x: 1.0, y: 0.0, z: 0.0, w: 1.0 }); // Red color
+                    widgets::show_text("Warning: This ID already exists!");
+                    igPopStyleColor(1);
+                }
+
                 igSpacing();
                 igSpacing();
                 
-                // 확인 버튼
-                if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                // 확인 버튼 - disable if duplicate
+                let ok_enabled = !is_duplicate || id_input.id.is_empty();
+                if !ok_enabled {
+                    igPushStyleVarFloat(ImGuiStyleVar__ImGuiStyleVar_Alpha as _, 0.5);
+                }
+
+                if igButton(const_cstr!("OK").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) && ok_enabled {
                     should_confirm = true;
                 }
                 
+                if !ok_enabled {
+                    igPopStyleVar(1);
+                }
+
                 igSameLine(0.0, 10.0);
                 
                 // 취소 버튼

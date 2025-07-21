@@ -121,6 +121,14 @@ pub fn main_menu(app :&mut App) {
                                   std::ptr::null(), app.windows.log, true) {
                     app.windows.log = !app.windows.log;
                 }
+                if igMenuItemBool(const_cstr!("Sidebar").as_ptr(), 
+                                  std::ptr::null(), app.windows.sidebar.is_open, true) {
+                    app.windows.sidebar.is_open = !app.windows.sidebar.is_open;
+                }
+                if igMenuItemBool(const_cstr!("Dispatch Window").as_ptr(), 
+                                  std::ptr::null(), app.windows.dispatch_window.is_open, true) {
+                    app.windows.dispatch_window.is_open = !app.windows.dispatch_window.is_open;
+                }
                 igEndMenu();
             }
             if igBeginMenu(const_cstr!("Tools").as_ptr(), true) {
