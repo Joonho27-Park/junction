@@ -24,6 +24,7 @@ pub fn dispatch_view(
     inf_view: &InfView,
     analysis: &mut Analysis,
     dv: &mut DispatchView,
+    is_docking :&mut bool,
 ) -> Option<Option<DispatchView>> {
     let mut new_dispatch: Option<Option<DispatchView>> = None;
     let sel = dispatch_select_bar(config, &Some(*dv), analysis);
@@ -34,7 +35,7 @@ pub fn dispatch_view(
             let graph = analysis.data().dispatch.vecmap_get(manual.dispatch_idx);
             if let Some((_gen, graph)) = graph {
                 unsafe { igSameLine(0.0, -1.0); }
-                if let Some(action) = diagram_view(config, inf_canvas, inf_view, analysis, manual, graph) {
+                if let Some(action) = diagram_view(config, inf_canvas, inf_view, analysis, manual, graph, is_docking) {
                     match action {
                         DiagramViewAction::DeleteCommand { id } => {
                             analysis.edit_model(|m| {
@@ -64,13 +65,13 @@ pub fn dispatch_view(
             }
         }
         DispatchView::Auto(auto) => {
-            let new_auto = plan::edit_plan(config, inf_canvas, inf_view, analysis, auto);
+            let new_auto = plan::edit_plan(config, inf_canvas, inf_view, analysis, is_docking, auto);
             new_dispatch = new_auto.or(new_dispatch);
 
             if let Some(manual) = &mut auto.dispatch {
                 if let Some(Some((_gen, dispatches))) = analysis.data().plandispatches.get(auto.plan_idx) {
                     if let Some(graph) = dispatches.get(manual.dispatch_idx) {
-                        diagram_view(config, inf_canvas, inf_view, analysis, manual, graph);
+                        diagram_view(config, inf_canvas, inf_view, analysis, manual, graph, is_docking);
                     } else {
                         // Plan doesn't exist anymore.
                         if dispatches.len() > 0 {
@@ -101,6 +102,7 @@ pub fn dispatch_select_bar(config :&Config, dispatch_view :&Option<DispatchView>
         let mut retval = None;
         let mut action = None;
 
+        igSameLine(0.0, -1.0);
         let current_name = match dispatch_view {
             None => CString::new("\u{f2f2} None").unwrap(),
             Some(DispatchView::Manual(ManualDispatchView { dispatch_idx, .. })) => {

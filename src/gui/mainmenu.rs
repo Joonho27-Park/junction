@@ -122,8 +122,12 @@ pub fn main_menu(app :&mut App) {
                     app.windows.log = !app.windows.log;
                 }
                 if igMenuItemBool(const_cstr!("Sidebar").as_ptr(), 
-                                  const_cstr!("F2").as_ptr(), app.windows.sidebar.is_open, true) {
+                                  std::ptr::null(), app.windows.sidebar.is_open, true) {
                     app.windows.sidebar.is_open = !app.windows.sidebar.is_open;
+                }
+                if igMenuItemBool(const_cstr!("Dispatch Window").as_ptr(), 
+                                  std::ptr::null(), app.windows.dispatch_window.is_open, true) {
+                    app.windows.dispatch_window.is_open = !app.windows.dispatch_window.is_open;
                 }
                 igEndMenu();
             }

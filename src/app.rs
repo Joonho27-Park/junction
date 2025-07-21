@@ -2,6 +2,7 @@ use crate::document::Document;
 use crate::config::Config;
 use crate::gui::windows::logview::LogStore;
 use crate::gui::windows::sidebar::SidebarWindow;
+use crate::gui::windows::dispatch_window::DispatchWindow;
 use crate::import;
 use crate::gui;
 
@@ -35,6 +36,7 @@ pub struct Windows {
     pub quit: bool,
     pub vehicles: bool,
     pub sidebar: SidebarWindow,
+    pub dispatch_window: DispatchWindow,
     pub sidebar_split: Option<f32>,
     pub diagram_split :Option<f32>,
     pub import_window :import::ImportWindow,
@@ -50,6 +52,7 @@ impl Windows {
             quit: false,
             vehicles: false,
             sidebar: SidebarWindow::new(),
+            dispatch_window: DispatchWindow::new(),
             sidebar_split: None,
 
             diagram_split: None,

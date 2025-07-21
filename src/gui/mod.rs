@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::gui::windows::sidebar;
 
 use const_cstr::*;
-
+/*
 fn render_main_content(
     config: &Config,
     analysis: &mut Analysis,
@@ -61,7 +61,7 @@ fn render_main_content(
             });
     }
 }
-
+*/
 pub fn main(app :&mut App) -> bool {
 
     // keyboard commands (ctrl+s for save, etc. + a/s/d for tool selection)
@@ -82,40 +82,9 @@ pub fn main(app :&mut App) -> bool {
         let inf_view = &mut app.document.inf_view;
         let dispatch_view = &mut app.document.dispatch_view;
         
-        // 기존 레이아웃 사용
-        if dispatch_view.is_none() {
-            let d = infrastructure::inf_view(config, analysis, inf_view, dispatch_view);
-            inf_canvas = Some(d);
-
-            unsafe {
-                use backend_glfw::imgui::*;
-                let pos = igGetCursorPos_nonUDT2().into();
-                let frameh = igGetFrameHeight();
-                let framespace = igGetFrameHeightWithSpacing() - frameh;
-                igSetCursorPos(pos + ImVec2 { x: 2.0*framespace, y : -frameh-3.0*framespace });
-                let new_dispatchview = dispatch::dispatch_select_bar(config, &None, analysis);
-                if let Some(nd) = new_dispatchview { 
-                    if nd.is_some() { *dispatch_view = nd; }
-                }
-                igSetCursorPos(pos);
-            }
-        } else {
-            if app.windows.diagram_split.is_none() { 
-                app.windows.diagram_split = Some(0.5); 
-            } 
-
-            widgets::Splitter::vertical(app.windows.diagram_split.as_mut().unwrap())
-                .left(const_cstr!("inf_canv").as_ptr(), || {
-                    let d = infrastructure::inf_view(config, analysis, inf_view, dispatch_view); 
-                    inf_canvas = Some(d);
-                })
-                .right(const_cstr!("dia_dptch").as_ptr(), || {
-                    if let Some(d) = dispatch::dispatch_view(config, inf_canvas.as_ref(), inf_view,
-                                                             analysis, dispatch_view.as_mut().unwrap() ) {
-                        *dispatch_view = d;
-                    }
-                });
-        }
+        // Infrastructure view only (dispatch is now handled by dockable window)
+        let d = infrastructure::inf_view(config, analysis, inf_view, dispatch_view);
+        inf_canvas = Some(d);
     });
 
     // Other windows
@@ -126,7 +95,16 @@ pub fn main(app :&mut App) -> bool {
     windows::config::edit_config_window(&mut app.windows.config, &mut app.config);
     
     // 사이드바 창 렌더링 (오른쪽 고정)
-    app.windows.sidebar.render(&mut app.document);
+    app.windows.sidebar.render(&mut app.document, Some(match app.windows.dispatch_window.dock_position {
+        crate::gui::windows::dispatch_window::DockPosition::None => sidebar::DockPosition::None,
+        crate::gui::windows::dispatch_window::DockPosition::Top => sidebar::DockPosition::Top,
+        crate::gui::windows::dispatch_window::DockPosition::Bottom => sidebar::DockPosition::Bottom,
+        crate::gui::windows::dispatch_window::DockPosition::Left => sidebar::DockPosition::Left,
+        crate::gui::windows::dispatch_window::DockPosition::Right => sidebar::DockPosition::Right,
+    }));
+    
+    // Dispatch 창 렌더링 (dockable)
+            app.windows.dispatch_window.render(&mut app.document, &app.config, inf_canvas.as_ref(), Some(&app.windows.sidebar));
     
     // 사이드바에서 config 창 열기 요청 처리
     if app.windows.sidebar.open_config {
