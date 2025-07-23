@@ -33,13 +33,25 @@ pub fn node_editor(analysis :&mut Analysis, pt :Pt) -> Option<()> {
                 });
             }
         },
-        NDType::Sw(side) => {
-            widgets::show_text(&format!("Switch ({:?})", side));
+        NDType::Sw(side, state) => {
+            widgets::show_text(&format!("Switch ({:?}) - {:?}", side, state));
 
-            // TODO 
-            let mut speed = 60.0;
-            igInputFloat(const_cstr!("Deviating speed restr.").as_ptr(), &mut speed, 1.0, 10.0,
-                         const_cstr!("%.1f").as_ptr(), 0 as _);
+            // 스위치 상태 변경 버튼
+            let current_state = *state;
+            let new_state = match current_state {
+                SwitchState::Straight => SwitchState::Diverging,
+                SwitchState::Diverging => SwitchState::Straight,
+            };
+            
+            let pt_copy = pt;
+            let side_copy = *side;
+            
+            if igButton(const_cstr!("Toggle Switch State").as_ptr(), ImVec2::zero()) {
+                analysis.edit_model(|m| {
+                    m.node_data.insert(pt, NDType::Sw(side_copy, new_state));
+                    None
+                });
+            }
         },
         NDType::Crossing(type_) => {
             widgets::show_text(&format!("Crossing ({:?})", type_));

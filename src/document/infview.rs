@@ -6,6 +6,7 @@ use crate::document::objects::*;
 use crate::document::dispatch;
 use crate::gui::ImVec2;
 
+
 #[derive(Debug)]
 pub struct InfView {
     pub action :Action,
@@ -15,6 +16,8 @@ pub struct InfView {
     // 이름 입력 상태
     pub id_input: Option<IdInputState>,
     pub focused: bool, // 입력창/팝업 등 포커스가 필요한 UI가 떠 있을 때 true
+    // 처리된 스위치 노드 추적
+    pub processed_switch_nodes: Option<Vec<Pt>>,
 }
 
 #[derive(Debug)]
@@ -54,6 +57,7 @@ impl InfView {
             instant_cache: dispatch::InstantCache::new(),
             id_input: None,
             focused: false,
+            processed_switch_nodes: None,
         }
     }
 }

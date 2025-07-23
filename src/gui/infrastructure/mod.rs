@@ -22,6 +22,56 @@ use crate::gui::widgets::Draw;
 use crate::config::RailUIColorName;
 use crate::document::model::generate_unique_dispatch_name;
 
+// 스위치 노드에 해당하는 스위치 객체를 생성하는 함수
+fn create_switch_object_for_node(analysis: &mut Analysis, node_pt: Pt, vc: Vc, side: Side, inf_view: &mut InfView) {
+    let node_ptc = glm::vec2(node_pt.x as f32, node_pt.y as f32);
+    let obj_pt = round_coord(node_ptc);
+    
+    // 해당 위치에 스위치 객체가 이미 있는지 확인
+    if !analysis.model().objects.contains_key(&obj_pt) {
+        // insert_object와 동일한 로직으로 스위치 객체 생성
+        // 스위치 설치 위치 계산
+        // side에 따라 분기 방향의 맞은편에 설치
+        let normal = glm::vec2(-vc.y as f32, vc.x as f32);
+        let normal_len = glm::length(&normal);
+        let normalized_normal = if normal_len > 0.0 { normal / normal_len } else { normal };
+        
+        // side가 Left면 normal 방향(반대편), Right면 -normal 방향(반대편)에 설치
+        let offset = match side {
+            Side::Left => -0.5 * normalized_normal,
+            Side::Right => 0.5 * normalized_normal,
+        };
+        let final_loc = node_ptc + offset;
+        
+        // 열차 진행 방향과 같은 방향으로 tangent 설정
+        let switch_tangent = glm::vec2(-vc.x, -vc.y);; // vc는 이미 열차 진행 방향
+        
+        // placed_angle 계산 (직선 방향 기준)
+        let tangent_angle = (switch_tangent.y as f32).atan2(switch_tangent.x as f32);
+        let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
+        
+        let switch_obj = Object {
+            loc: final_loc,
+            tangent: switch_tangent, // 열차 진행 방향과 같은 방향
+            functions: vec![Function::Switch { id: None }],
+            id: None,
+            signal_props: None,
+            switch_props: Some(SwitchProperties {
+                switch_type: SwitchType::Single, // 기본값으로 Single 설정
+            }),
+            placed_angle: Some(angle_degrees),
+        };
+        
+        // ID 입력 다이얼로그 표시 (insert_object와 동일한 방식)
+        inf_view.id_input = Some(IdInputState {
+            object: switch_obj.clone(),
+            id: String::new(),
+            position: final_loc,
+            function_type: Function::Switch { id: None },
+        });
+    }
+}
+
 #[derive(Copy,Clone,Debug)]
 pub enum Highlight {
     Ref(Ref),
@@ -45,6 +95,9 @@ pub fn inf_view(config :&Config,
         let mut preview_route = None;
         context_menu(analysis, inf_view, dispatch_view, &draw, &mut preview_route);
         interact(config, analysis, inf_view, &draw);
+        
+
+        
         draw_inf(config, analysis, inf_view, dispatch_view, &draw, preview_route);
         draw.end_draw();
         // Object properties panel is now handled by the sidebar
@@ -450,11 +503,19 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                 _ => {}
                             }
                         } else if obj.functions.iter().any(|f| matches!(f, Function::Switch { .. })) {
-                            println!("obj.loc c: {:?}", obj.loc);
+                            // 스위치 객체인 경우 자동 설치 방식의 방향과 오프셋 적용
+                            let switch_tangent = glm::vec2(-obj.tangent.x, -obj.tangent.y); // 직선 방향
+                            let tangent_angle = (switch_tangent.y as f32).atan2(switch_tangent.x as f32);
+                            let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
+                            
+                            let mut switch_obj = obj.clone();
+                            switch_obj.tangent = switch_tangent;
+                            switch_obj.placed_angle = Some(angle_degrees);
+                            
                             inf_view.id_input = Some(IdInputState {
-                                object: obj.clone(),  // move_to가 호출된 후의 obj 사용
+                                object: switch_obj.clone(),
                                 id: String::new(),
-                                position: obj.loc.clone(),
+                                position: switch_obj.loc.clone(),
                                 function_type: Function::Switch { id: None },
                             });
                         } else {
@@ -597,12 +658,16 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         functions: vec![Function::Switch { id: None }],
                         id: None,
                         signal_props: None,
-                        switch_props: None,
+                        switch_props: Some(SwitchProperties {
+                            switch_type: SwitchType::Single,
+                        }),
                         placed_angle: None,
                     }
                 ));
                 inf_view.focused = false;
             }
+            
+
             
             igEnd();
             // 메뉴가 닫힐 때는 igBegin이 false가 되므로 아래에서 처리

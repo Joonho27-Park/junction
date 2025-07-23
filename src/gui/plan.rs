@@ -716,9 +716,12 @@ fn good_location_marker(config :&Config, vm :&Analysis, loc :&PlanLoc, first_vis
                         config.color_u32(RailUIColorName::CanvasRoutePath)
                     };
                 },
-                NDType::Sw(_)  => {
+                NDType::Sw(_, state)  => {
                     name = const_cstr!("\u{f074}");
-                    col = config.color_u32(RailUIColorName::GraphCommandRoute);
+                    col = match state {
+                        SwitchState::Straight => config.color_u32(RailUIColorName::CanvasSignalProceed), // 초록색 (직선)
+                        SwitchState::Diverging => config.color_u32(RailUIColorName::CanvasSignalStop),   // 빨간색 (꺾임)
+                    };
                 },
                 NDType::Cont => { 
                     name = const_cstr!("\u{f337}");

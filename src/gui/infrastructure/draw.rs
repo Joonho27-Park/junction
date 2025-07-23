@@ -80,7 +80,7 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
             let col = if selected || preview { color_line_selected } else { color_line };
             // [기본 track(선로) 두께]
             // 실제 선로(트랙)를 화면에 그릴 때 사용하는 두께. 전체 인프라 뷰에서 가장 기본이 되는 선로의 두께를 결정한다.
-            ImDrawList_AddLine(draw.draw_list, draw.pos + p1, draw.pos + p2, col, 2.5);
+            ImDrawList_AddLine(draw.draw_list, draw.pos + p1, draw.pos + p2, col, 3.5);
         }
 
         let color_node = config.color_u32(RailUIColorName::CanvasNode);
@@ -112,12 +112,34 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                         ImDrawList_AddCircleFilled(draw.draw_list, 
                             draw.pos + inf_view.view.world_ptc_to_screen(pt), 4.0, col, 8);
                     },
-                    NDType::Sw(side) => {
-                        let angle = if matches!(side, Side::Left) { 45.0 } else { -45.0 };
+                    NDType::Sw(side, state) => {
                         let p1 = draw.pos + inf_view.view.world_ptc_to_screen(pt);
-                        let p2 = p1 + util::to_imvec(15.0*normalize(&tangent));
-                        let p3 = p1 + util::to_imvec(15.0*rotate_vec2(&(1.41*normalize(&tangent)), radians(&vec1(angle)).x));
-                        ImDrawList_AddTriangleFilled(draw.draw_list, p1,p2,p3, col);
+                        let tangent_norm = normalize(&tangent);
+                        let normal = vec2(-tangent_norm.y, tangent_norm.x);
+                        
+                        // 스위치의 기본 위치
+                        let switch_pos = p1;
+                        
+                        // 상태에 따라 궤도 연결/차단 표시
+                        match state {
+                            SwitchState::Straight => {
+                                // 직선 상태: 분기 궤도 위에 직선 궤도 방향으로 배경색 선을 덧대서 끊긴 것처럼 표시
+                                let angle = if matches!(side, Side::Left) { 45.0 } else { -45.0 };
+                                let diverging_dir = rotate_vec2(&tangent_norm, radians(&vec1(angle)).x);
+                                let diverging_pos = switch_pos + util::to_imvec(6.5 * diverging_dir);
+                                
+                                // 분기 궤도 위에 직선 궤도 방향(tangent 방향)으로 배경색 선을 덧대기
+                                let straight_start = diverging_pos - util::to_imvec(7.0 * tangent_norm);
+                                let straight_end = diverging_pos + util::to_imvec(7.0 * tangent_norm);
+                                
+                                let background_color = config.color_u32(RailUIColorName::CanvasBackground);
+                                ImDrawList_AddLine(draw.draw_list, straight_start, straight_end, background_color, 6.0);
+                            },
+                            SwitchState::Diverging => {
+                                // 꺾임 상태: 분기 궤도가 연결되어 있음 (아무것도 그리지 않음)
+                                // 기존 궤도가 그대로 보이도록 함
+                            }
+                        }
                     },
                     NDType::Err =>{
                         let p = draw.pos + inf_view.view.world_ptc_to_screen(pt);

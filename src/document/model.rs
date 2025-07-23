@@ -13,6 +13,13 @@ pub enum Side {
     Left, Right
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize,Deserialize)]
+pub enum SwitchState {
+    Straight,  // 직선 주행 상태
+    Diverging, // 꺾임 주행 상태
+}
+
 impl Side {
     pub fn opposite(&self) -> Side {
         match self {
@@ -73,7 +80,7 @@ pub enum CrossingType {
 
 #[derive(Debug,Copy,Clone, PartialEq, Eq)]
 #[derive(Serialize,Deserialize)]
-pub enum NDType { OpenEnd, BufferStop, Cont, Sw(Side), Crossing(CrossingType), Err }
+pub enum NDType { OpenEnd, BufferStop, Cont, Sw(Side, SwitchState), Crossing(CrossingType), Err }
 // TODO crossing switchable, crossing orthogonal?, what settings does a crossing have?
 // Assuming non-switched crossing for now.
 

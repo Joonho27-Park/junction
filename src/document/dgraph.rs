@@ -316,7 +316,7 @@ impl DGraphBuilder {
                     self.connect_linear(ports[&(*pt, Port::ContA)],
                                         ports[&(*pt, Port::ContB)], 0.0);
                 },
-                NDType::Sw(side) => {
+                NDType::Sw(side, _state) => {
                     let sw_obj = self.new_object(rolling_inf::StaticObject::Switch {
                         left_link:  (ports[&(*pt,Port::Left)], 0.0),
                         right_link: (ports[&(*pt,Port::Right)], 0.0),

@@ -133,14 +133,20 @@ impl Object {
                 return Some(());
             } else if self.functions.iter().find(|c| matches!(c, Function::Switch { id: _ })).is_some() {
                 // Switch는 NDType::Sw(side) 노드의 위치 반경 내에서만 배치 가능
-                // 신호기와 동일한 방식으로 tangent 방향 조정
+                // 자동 설치 방식과 동일한 오프셋 적용
                 let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                     1.0 } else { -1.0 };
-                let offset = SWITCH_OFFSET*normal*factor;
+                
+                // 자동 설치 방식과 동일한 오프셋 계산
+                let normal_len = glm::length(&normal);
+                let normalized_normal = if normal_len > 0.0 { normal / normal_len } else { normal };
+                let offset = 0.5 * normalized_normal * factor;
+                
                 let place_pos = glm::vec2(
-                    (pt_on_line.x * 2.0).round() / 2.0 + offset.x,
-                    (pt_on_line.y * 2.0).round() / 2.0 + offset.y
-                );
+                    (pt_on_line.x * 2.0).round() / 2.0,
+                    (pt_on_line.y * 2.0).round() / 2.0
+                ) + offset;
+                
                 let mut found = false;
                 
                 // 신호기와 동일하게 tangent 방향 조정
@@ -151,7 +157,7 @@ impl Object {
                 // analysis를 통해 topology의 locations에서 스위치 노드 찾기
                 if let Some((_, topology)) = analysis.data().topology.as_ref() {
                     for (sw_pt, (ndtype, _)) in topology.locations.iter() {
-                        if let NDType::Sw(_) = ndtype {
+                        if let NDType::Sw(_, _) = ndtype {
                             let sw_pt_f = glm::vec2(sw_pt.x as f32, sw_pt.y as f32);
                             if glm::distance(&place_pos, &sw_pt_f) <= 1.2 {
                                 found = true;
