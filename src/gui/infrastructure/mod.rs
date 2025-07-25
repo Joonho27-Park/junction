@@ -503,19 +503,11 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                 _ => {}
                             }
                         } else if obj.functions.iter().any(|f| matches!(f, Function::Switch { .. })) {
-                            // 스위치 객체인 경우 자동 설치 방식의 방향과 오프셋 적용
-                            let switch_tangent = glm::vec2(-obj.tangent.x, -obj.tangent.y); // 직선 방향
-                            let tangent_angle = (switch_tangent.y as f32).atan2(switch_tangent.x as f32);
-                            let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
-                            
-                            let mut switch_obj = obj.clone();
-                            switch_obj.tangent = switch_tangent;
-                            switch_obj.placed_angle = Some(angle_degrees);
-                            
+                            // 스위치 객체인 경우 미리보기 그대로 설치
                             inf_view.id_input = Some(IdInputState {
-                                object: switch_obj.clone(),
+                                object: obj.clone(),
                                 id: String::new(),
-                                position: switch_obj.loc.clone(),
+                                position: obj.loc.clone(),
                                 function_type: Function::Switch { id: None },
                             });
                         } else {
