@@ -118,6 +118,7 @@ pub struct InfrastructureState {
     pub sections :Vec<(ObjectId, SectionStatus, Vec<(PtC,PtC)>)>,
     pub switches :HashMap<Pt, SwitchStatus>,
     pub object_state :HashMap<PtA, Vec<ObjectState>>,
+    pub switch_states :HashMap<Pt, SwitchState>, // 스위치 노드의 상태 (직선/분기)
     // TODO sight lines
 }
 
@@ -381,7 +382,8 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
     }
 
     let mut sections :HashMap<ObjectId, SectionStatus> = HashMap::new();
-    let switches :HashMap<Pt, SwitchStatus> = HashMap::new();
+    let mut switches :HashMap<Pt, SwitchStatus> = HashMap::new();
+    let mut switch_states :HashMap<Pt, SwitchState> = HashMap::new();
 
     let mut reserved : HashSet<ObjectId> = HashSet::new();
     let mut occupied : HashSet<ObjectId> = HashSet::new();
@@ -419,7 +421,52 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
             InfrastructureLogEvent::Occupied(tvd,b,_,_) => {
                 if *b { occupied.insert(*tvd); } else { occupied.remove(tvd); }
             },
-            _ => {}, // TODO switches
+            InfrastructureLogEvent::Position(sw_obj_id, pos) => {
+                // 스위치 객체 ID를 Pt로 변환하여 switches에 저장
+                if let Some(pt) = dgraph.switch_ids.get_by_left(sw_obj_id) {
+                    let switch_status = match pos {
+                        rolling_inf::SwitchPosition::Left => SwitchStatus::Left,
+                        rolling_inf::SwitchPosition::Right => SwitchStatus::Right,
+                    };
+                    switches.insert(*pt, switch_status);
+                    
+                    // 스위치 상태 변경 로그 출력 (직선/분기로 표시)
+                    println!("스위치 상태 변경: 객체 ID {}, 위치 {:?}", sw_obj_id, pos);
+                    println!("  -> 스위치 위치: {:?}, 상태: {:?}", pt, switch_status);
+                    
+                    // 스위치가 직선인지 분기인지 판별하여 출력
+                    // 스위치 객체에서 설치 정보(branch_side)를 가져와서 현재 위치와 비교
+                    if let Some(switch_obj) = dgraph.rolling_inf.objects.get(*sw_obj_id) {
+                        if let rolling_inf::StaticObject::Switch { branch_side, .. } = switch_obj {
+                            let is_straight = branch_side == pos;
+                            let state_str = if is_straight { "직선" } else { "분기" };
+                            println!("  -> 스위치 상태: {} (설치분기방향: {:?}, 현재위치: {:?})", state_str, branch_side, pos);
+                            
+                            // 스위치 객체의 ObjectState 설정
+                            if let Some(pta) = dgraph.object_ids.get_by_left(sw_obj_id) {
+                                let switch_state = if is_straight { 
+                                    ObjectState::SwitchStraight 
+                                } else { 
+                                    ObjectState::SwitchDiverging 
+                                };
+                                object_state.insert(*pta, vec![switch_state]);
+                            }
+                            
+                            // 스위치 노드의 SwitchState 저장
+                            let new_state = if is_straight { 
+                                SwitchState::Straight 
+                            } else { 
+                                SwitchState::Diverging 
+                            };
+                            switch_states.insert(*pt, new_state);
+                            println!("  -> 스위치 노드 상태 저장: 위치 {:?}, 새 상태: {:?}", pt, new_state);
+                        }
+                    }
+                } else {
+                    println!("스위치 상태 변경 오류: 객체 ID {}에 해당하는 위치를 찾을 수 없음", sw_obj_id);
+                }
+            },
+            _ => {}, // TODO route
         }
     }
 
@@ -441,7 +488,7 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
         sections_vec.push((tvd,status,section_lines));
     }
 
-    InfrastructureState { sections: sections_vec, switches, object_state }
+    InfrastructureState { sections: sections_vec, switches, object_state, switch_states }
 }
 
 

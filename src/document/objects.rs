@@ -72,7 +72,14 @@ pub enum SwitchType {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
-pub enum ObjectState { SignalStop, SignalProceed, DistantStop, DistantProceed }
+pub enum ObjectState { 
+    SignalStop, 
+    SignalProceed, 
+    DistantStop, 
+    DistantProceed,
+    SwitchStraight,  // 스위치 직선 상태
+    SwitchDiverging, // 스위치 분기 상태
+}
 
 pub const SIGNAL_OFFSET: f32 = 0.35;
 pub const SWITCH_OFFSET: f32 = 0.5;
@@ -147,14 +154,10 @@ impl Object {
                     (pt_on_line.y * 2.0).round() / 2.0
                 ) + offset;
                 
-                let mut found = false;
-                
-                // 신호기와 동일하게 tangent 방향 조정
-                if factor > 0.0 {
-                    self.tangent *= -1;
-                }
+
 
                 // analysis를 통해 topology의 locations에서 스위치 노드 찾기
+                let mut found = false;
                 if let Some((_, topology)) = analysis.data().topology.as_ref() {
                     for (sw_pt, (ndtype, _)) in topology.locations.iter() {
                         if let NDType::Sw(_, _) = ndtype {
@@ -166,6 +169,8 @@ impl Object {
                         }
                     }
                 }
+                
+                // 스위치 노드가 있는 위치에서만 배치 가능
                 if found {
                     self.loc = place_pos;
                     // 스위치가 성공적으로 배치될 때만 기울기 출력 및 각도 저장
@@ -176,8 +181,9 @@ impl Object {
                     self.placed_angle = Some(angle_degrees);
                     return Some(());
                 } else {
+                    // 스위치 노드가 없는 위치에서는 배치 불가
                     self.loc = place_pos;
-                    return Some(());
+                    return None;
                 }
             }
 
@@ -559,14 +565,15 @@ impl Object {
                             ImVec2 { x: normal.x / normal_len, y: normal.y / normal_len }
                         } else { ImVec2 { x: 0.0, y: 1.0 } };
 
-                        // stem(세로 직사각형) 중심:
-                        let stem_center = p; // 마우스 포인터가 stem 중심
+                        // 마우스 포인터가 동그라미 중심이 되도록 변경
+                        let circle_center = p; // 마우스 포인터가 동그라미 중심
 
-                        // 원(circle) 위치 및 크기 (stem_center 기준 normal 방향)
+                        // 원(circle) 위치 및 크기
                         let circle_size = scale * 1.5;
                         let circle_diameter = circle_size * 2.0;
                         let stem_width = circle_diameter * 2.5;
                         let circle_offset = stem_width/2.0 + circle_size + 1.0;
+                        
                         // tangent unit vector 계산
                         let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
                         let tangent_unit = if tangent_len > 0.0 {
@@ -574,7 +581,20 @@ impl Object {
                         } else {
                             ImVec2 { x: 1.0, y: 0.0 }
                         };
-                        let circle_pos = stem_center + mul_imvec2(tangent_unit, circle_offset);
+                        
+                        // 스위치의 placed_angle을 사용해서 동그라미 위치 결정
+                        let stem_center = if let Some(angle) = self.placed_angle {
+                            if angle >= 90.0 && angle <= 270.0 {
+                                // 90도~270도: 동그라미가 왼쪽에
+                                circle_center - mul_imvec2(tangent_unit, circle_offset)
+                            } else {
+                                // 0도~90도 또는 270도~360도: 동그라미가 오른쪽에
+                                circle_center + mul_imvec2(tangent_unit, circle_offset)
+                            }
+                        } else {
+                            // placed_angle이 없으면 기본값 (오른쪽)
+                            circle_center + mul_imvec2(tangent_unit, circle_offset)
+                        };
 
                         // stem(세로 직사각형) 네 꼭짓점 (width=circle_diameter*2.5, height=stem_height)
                         let stem_width = circle_diameter * 2.5;
@@ -592,7 +612,7 @@ impl Object {
                         ImDrawList_AddLine(draw_list, stem_bl, stem_tl, c, 2.0);
 
                         // ===== 스위치 원(circle) 외곽선만 그리기 =====
-                        ImDrawList_AddCircle(draw_list, circle_pos, circle_size, c, 20, 2.0);
+                        ImDrawList_AddCircle(draw_list, circle_center, circle_size, c, 20, 2.0);
 
                         // ===== 스위치 ID 텍스트 렌더링 =====
                         if let Function::Switch { id: Some(id) } = f {

@@ -112,7 +112,7 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                         ImDrawList_AddCircleFilled(draw.draw_list, 
                             draw.pos + inf_view.view.world_ptc_to_screen(pt), 4.0, col, 8);
                     },
-                    NDType::Sw(side, state) => {
+                    NDType::Sw(side, _) => {
                         let p1 = draw.pos + inf_view.view.world_ptc_to_screen(pt);
                         let tangent_norm = normalize(&tangent);
                         let normal = vec2(-tangent_norm.y, tangent_norm.x);
@@ -120,8 +120,15 @@ pub fn base(config :&Config, analysis :&Analysis, inf_view :&InfView,
                         // 스위치의 기본 위치
                         let switch_pos = p1;
                         
-                        // 상태에 따라 궤도 연결/차단 표시
-                        match state {
+                        // instant에서 스위치 상태 확인
+                        let switch_state = if let Some(instant) = instant {
+                            instant.infrastructure.switch_states.get(pt0).unwrap_or(&SwitchState::Straight)
+                        } else {
+                            &SwitchState::Straight
+                        };
+                        
+                        // 상태에 따라 배경색 직사각형 표시
+                        match switch_state {
                             SwitchState::Straight => {
                                 // 직선 상태: 분기 궤도 위에 직선 궤도 방향으로 배경색 선을 덧대서 끊긴 것처럼 표시
                                 let angle = if matches!(side, Side::Left) { 45.0 } else { -45.0 };
