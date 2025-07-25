@@ -93,8 +93,25 @@ impl Object {
                     let normal_len = glm::length(&normal);
                     let n = if normal_len > 0.0 { normal / normal_len } else { normal };
                     let offset = SIGNAL_OFFSET * n * factor;
-                    if factor > 0.0 {
-                        self.tangent *= -1;
+                    
+                    // 홈/출발 신호기는 tangent 반전을 적용하지 않음 (시각적 방향 일관성 유지)
+                    if let Some(signal_props) = &self.signal_props {
+                        match signal_props.signal_type {
+                            SignalType::Home | SignalType::Departure => {
+                                // 홈/출발 신호기는 tangent 반전 없이 offset만 적용
+                            },
+                            _ => {
+                                // 입환 신호기와 다른 객체들은 기존 로직 적용
+                                if factor > 0.0 {
+                                    self.tangent *= -1;
+                                }
+                            }
+                        }
+                    } else {
+                        // signal_props가 없는 경우 기본 로직 적용
+                        if factor > 0.0 {
+                            self.tangent *= -1;
+                        }
                     }
                     self.loc = glm::vec2(
                         (pt_on_line.x * 2.0).round() / 2.0,
@@ -109,15 +126,28 @@ impl Object {
                     let tangent_angle = (self.tangent.y as f32).atan2(self.tangent.x as f32);
                     let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
 
-                    // 이 신호기의 각도를 저장
-                    self.placed_angle = Some(angle_degrees);
+                    // 각도를 -180° ~ 180° 범위로 정규화
+                    let normalized_angle = if angle_degrees > 180.0 {
+                        angle_degrees - 360.0
+                    } else if angle_degrees < -180.0 {
+                        angle_degrees + 360.0
+                    } else {
+                        angle_degrees
+                    };
 
-                    // 각도에 따라 TrackDirection 설정
+                    // 디버깅: tangent 벡터와 각도 정보 출력
+                    println!("Signal placed - Tangent: ({}, {}), Angle: {:.1}°, Factor: {}", 
+                             self.tangent.x, self.tangent.y, normalized_angle, factor);
+
+                    // 이 신호기의 각도를 저장
+                    self.placed_angle = Some(normalized_angle);
+
+                    // 각도에 따라 TrackDirection 설정 (시각적 표현과 일치하도록)
                     if let Some(signal_props) = &mut self.signal_props {
-                        let direction = if angle_degrees == -135.0 || angle_degrees == 135.0 || angle_degrees == 180.0 {
-                            TrackDirection::Right
-                        } else if angle_degrees == 0.0 || angle_degrees == 45.0 || angle_degrees == -45.0 {
-                            TrackDirection::Left
+                        let direction = if normalized_angle == -135.0 || normalized_angle == 135.0 || normalized_angle == 180.0 {
+                            TrackDirection::Left  // 시각적으로 왼쪽을 향함
+                        } else if normalized_angle == 0.0 || normalized_angle == 45.0 || normalized_angle == -45.0 {
+                            TrackDirection::Right // 시각적으로 오른쪽을 향함
                         } else {
                             // 기본값 (기존 방향 유지)
                             signal_props.direction
@@ -166,8 +196,17 @@ impl Object {
                     let tangent_angle = (self.tangent.y as f32).atan2(self.tangent.x as f32);
                     let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
 
+                    // 각도를 -180° ~ 180° 범위로 정규화
+                    let normalized_angle = if angle_degrees > 180.0 {
+                        angle_degrees - 360.0
+                    } else if angle_degrees < -180.0 {
+                        angle_degrees + 360.0
+                    } else {
+                        angle_degrees
+                    };
+
                     // 이 스위치의 각도를 저장
-                    self.placed_angle = Some(angle_degrees);
+                    self.placed_angle = Some(normalized_angle);
                     return Some(());
                 } else {
                     self.loc = place_pos;
@@ -221,9 +260,39 @@ impl Object {
                                 // 2. 신호기 기둥 길이 결정: 원거리 신호기가 있으면 2.0, 없으면 1.0
                                 let stem = if *has_distant { 2.0 } else { 1.0 };
 
-                                // 3. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
-                                // p(트랙 위치)에서 p + stem*tangent(신호등 위치)까지
-                                ImDrawList_AddLine(draw_list, p, p + stem*tangent, c, 2.0);
+                                // 3. 홈/출발 신호기 방향에 따른 tangent 조정 (트랙 위/아래 위치 고려)
+                                let adjusted_tangent = if let Some(signal_props) = &self.signal_props {
+                                    // 트랙 위/아래 위치에 따라 다른 로직 적용
+                                    // 트랙 위에서는 tangent가 이미 반전되어 있으므로 방향 로직을 반대로 적용
+                                    let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                    
+                                    match signal_props.direction {
+                                        TrackDirection::Left => {
+                                            if is_track_above {
+                                                // 트랙 위: 원래 tangent 사용 (이미 반전되어 있음)
+                                                tangent
+                                            } else {
+                                                // 트랙 아래: tangent 반전
+                                                ImVec2 { x: -tangent.x, y: -tangent.y }
+                                            }
+                                        },
+                                        TrackDirection::Right => {
+                                            if is_track_above {
+                                                // 트랙 위: tangent 반전 (이미 반전되어 있으므로 다시 반전)
+                                                ImVec2 { x: -tangent.x, y: -tangent.y }
+                                            } else {
+                                                // 트랙 아래: 원래 tangent 사용
+                                                tangent
+                                            }
+                                        },
+                                    }
+                                } else {
+                                    tangent
+                                };
+
+                                // 4. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
+                                // p(트랙 위치)에서 p + stem*adjusted_tangent(신호등 위치)까지
+                                ImDrawList_AddLine(draw_list, p, p + stem*adjusted_tangent, c, 2.0);
 
                                 // ===== 신호 상태별 색상 원 그리기 =====
                                 // 각 신호 상태에 따라 다른 색상의 원을 그려서 신호 상태를 표시
@@ -232,26 +301,26 @@ impl Object {
                                         ObjectState::SignalStop => {
                                             // 정지 신호: 빨간색 원
                                             let c = config.color_u32(RailUIColorName::CanvasSignalStop);
-                                            // 위치: 기둥 끝에서 tangent 방향으로 한 단위 더 이동한 곳
-                                            ImDrawList_AddCircleFilled(draw_list, p + stem*tangent + tangent, scale, c, 8);
+                                            // 위치: 기둥 끝에서 adjusted_tangent 방향으로 한 단위 더 이동한 곳
+                                            ImDrawList_AddCircleFilled(draw_list, p + stem*adjusted_tangent + adjusted_tangent, scale, c, 8);
                                         },
                                         ObjectState::SignalProceed => {
                                             // 진행 신호: 초록색 원
                                             let c = config.color_u32(RailUIColorName::CanvasSignalProceed);
-                                            // 위치: 기둥 끝에서 tangent 방향으로 한 단위 더 이동한 곳
-                                            ImDrawList_AddCircleFilled(draw_list, p + stem*tangent + tangent, scale, c, 8);
+                                            // 위치: 기둥 끝에서 adjusted_tangent 방향으로 한 단위 더 이동한 곳
+                                            ImDrawList_AddCircleFilled(draw_list, p + stem*adjusted_tangent + adjusted_tangent, scale, c, 8);
                                         },
                                         ObjectState::DistantStop if *has_distant => {
                                             // 원거리 정지 신호: 빨간색 원 (원거리 신호기가 있을 때만)
                                             let c = config.color_u32(RailUIColorName::CanvasSignalStop);
-                                            // 위치: 기둥에서 1.5*tangent + normal 방향으로 이동한 곳
-                                            ImDrawList_AddCircleFilled(draw_list, p + 1.5*tangent + normal, scale*0.8, c, 8);
+                                            // 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동한 곳
+                                            ImDrawList_AddCircleFilled(draw_list, p + 1.5*adjusted_tangent + normal, scale*0.8, c, 8);
                                         },
                                         ObjectState::DistantProceed => {
                                             // 원거리 진행 신호: 초록색 원
                                             let c = config.color_u32(RailUIColorName::CanvasSignalProceed);
-                                            // 위치: 기둥에서 1.5*tangent + normal 방향으로 이동한 곳
-                                            ImDrawList_AddCircleFilled(draw_list, p + 1.5*tangent + normal, scale*0.8, c, 8);
+                                            // 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동한 곳
+                                            ImDrawList_AddCircleFilled(draw_list, p + 1.5*adjusted_tangent + normal, scale*0.8, c, 8);
                                         },
                                         _ => {},
                                     };
@@ -260,15 +329,15 @@ impl Object {
                                 // ===== 신호등 외곽선 그리기 =====
                                 // 원거리 신호기 외곽선 (원거리 신호기가 있을 때만)
                                 if *has_distant {
-                                    // 위치: 기둥에서 1.5*tangent + normal 방향으로 이동한 곳
+                                    // 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동한 곳
                                     // 크기: scale*0.8 (메인 신호기보다 작음)
-                                    ImDrawList_AddCircle(draw_list, p + 1.5*tangent + normal, scale*0.8, c, 8, 2.0);
+                                    ImDrawList_AddCircle(draw_list, p + 1.5*adjusted_tangent + normal, scale*0.8, c, 8, 2.0);
                                 }
 
                                 // 메인 신호기 외곽선
-                                // 위치: 기둥 끝에서 tangent 방향으로 한 단위 더 이동한 곳
+                                // 위치: 기둥 끝에서 adjusted_tangent 방향으로 한 단위 더 이동한 곳
                                 // 크기: scale (원거리 신호기보다 큼)
-                                ImDrawList_AddCircle(draw_list, p + stem*tangent + tangent, scale, c, 8, 2.0);
+                                ImDrawList_AddCircle(draw_list, p + stem*adjusted_tangent + adjusted_tangent, scale, c, 8, 2.0);
 
                                 // ===== 메인 신호기 ID 텍스트 렌더링 =====
                                 // 신호기 ID가 있으면 신호기 기둥 아래에 텍스트를 표시
@@ -278,7 +347,7 @@ impl Object {
                                   let id_len = id.len() as f32;
 
                                   // X축 오프셋: 신호기 방향에 따라 다르게 적용
-                                  let x_offset = if self.tangent.x < 0 {
+                                  let x_offset = if adjusted_tangent.x < 0.0 {
                                     // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
                                     0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
                                   } else {
@@ -287,7 +356,7 @@ impl Object {
                                   };
 
                                   // Y축 오프셋: 신호기 방향과 관계없이 동일
-                                  let y_offset = if self.tangent.x < 0 {
+                                  let y_offset = if adjusted_tangent.x < 0.0 {
                                      -7.5 // 왼쪽을 향할 때 y offset -7.5
                                   } else {
                                      -7.5 // 오른쪽을 향할 때 y offset -7.5
@@ -316,13 +385,43 @@ impl Object {
                                 // 2. 신호기 기둥 길이 결정: 원거리 신호기가 있으면 2.0, 없으면 1.0
                                 let stem = if *has_distant { 2.0 } else { 1.0 };
 
-                                // 3. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
-                                ImDrawList_AddLine(draw_list, p, p + mul_imvec2(tangent, stem), c, 2.0);
+                                // 3. 입환신호기 방향에 따른 tangent 조정 (트랙 위/아래 위치 고려)
+                                let adjusted_tangent = if let Some(signal_props) = &self.signal_props {
+                                    // 트랙 위/아래 위치에 따라 다른 로직 적용
+                                    // 트랙 위에서는 tangent가 이미 반전되어 있으므로 방향 로직을 반대로 적용
+                                    let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                    
+                                    match signal_props.direction {
+                                        TrackDirection::Left => {
+                                            if is_track_above {
+                                                // 트랙 위: 원래 tangent 사용 (이미 반전되어 있음)
+                                                tangent
+                                            } else {
+                                                // 트랙 아래: tangent 반전
+                                                ImVec2 { x: -tangent.x, y: -tangent.y }
+                                            }
+                                        },
+                                        TrackDirection::Right => {
+                                            if is_track_above {
+                                                // 트랙 위: tangent 반전 (이미 반전되어 있으므로 다시 반전)
+                                                ImVec2 { x: -tangent.x, y: -tangent.y }
+                                            } else {
+                                                // 트랙 아래: 원래 tangent 사용
+                                                tangent
+                                            }
+                                        },
+                                    }
+                                } else {
+                                    tangent
+                                };
+
+                                // 4. 신호기 기둥: 트랙에서 신호등까지의 수직 기둥
+                                ImDrawList_AddLine(draw_list, p, p + mul_imvec2(adjusted_tangent, stem), c, 2.0);
 
                                 // ===== 1/4 원 그리기를 위한 벡터 계산 =====
-                                // tangent의 수직 벡터 계산 (한 번만 계산해서 재사용)
-                                // tangent = (tx, ty)일 때 normal = (ty, -tx)로 계산 (90도 회전)
-                                let normal = ImVec2 { x: tangent.y, y: -tangent.x };
+                                // adjusted_tangent의 수직 벡터 계산 (한 번만 계산해서 재사용)
+                                // adjusted_tangent = (tx, ty)일 때 normal = (ty, -tx)로 계산 (90도 회전)
+                                let normal = ImVec2 { x: adjusted_tangent.y, y: -adjusted_tangent.x };
 
                                 // normal 벡터 정규화 (길이 1로 만듦)
                                 let normal_len = (normal.x * normal.x + normal.y * normal.y).sqrt();
@@ -348,11 +447,11 @@ impl Object {
                                     // ===== 1/4 원의 중심(base) 위치 결정 =====
                                     let base = match s {
                                         ObjectState::DistantStop | ObjectState::DistantProceed =>
-                                            // 원거리 신호: 기둥에서 1.5*tangent + normal 방향으로 이동
-                                            p + mul_imvec2(tangent, 1.5) + mul_imvec2(n, offset),
+                                            // 원거리 신호: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
+                                            p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset),
                                         _ =>
                                             // 메인 신호: 기둥 끝에서 normal 방향으로 이동
-                                            p + mul_imvec2(tangent, stem) + mul_imvec2(n, offset),
+                                            p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset),
                                     };
 
                                     // ===== 1/4 원의 반지름(크기) 결정 =====
@@ -362,13 +461,13 @@ impl Object {
                                     };
 
                                     // ===== 1/4 원 그리기 알고리즘 =====
-                                    // tangent 벡터(신호기 방향)를 정규화(길이 1로 만듦)
-                                    let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
+                                    // adjusted_tangent 벡터(신호기 방향)를 정규화(길이 1로 만듦)
+                                    let tangent_len = (adjusted_tangent.x * adjusted_tangent.x + adjusted_tangent.y * adjusted_tangent.y).sqrt();
                                     let t = if tangent_len > 0.0 {
-                                        ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
+                                        ImVec2 { x: adjusted_tangent.x / tangent_len, y: adjusted_tangent.y / tangent_len }
                                     } else { ImVec2 { x: 1.0, y: 0.0 } };
 
-                                    // tangent 벡터의 각도를 구함 (신호기 방향이 기준이 됨)
+                                    // adjusted_tangent 벡터의 각도를 구함 (신호기 방향이 기준이 됨)
                                     // atan2(y, x)는 (x, y) 벡터의 각도를 반환
                                     let t_angle = t.y.atan2(t.x);
 
@@ -411,18 +510,18 @@ impl Object {
                                 // 원거리 신호기 테두리 1/4 원 (원거리 신호기가 있을 때만)
                                 if *has_distant {
                                     // ===== 원거리 신호기 외곽선 계산 =====
-                                    // 1/4 원의 중심(base) 위치: 기둥에서 1.5*tangent + normal 방향으로 이동
-                                    let base = p + mul_imvec2(tangent, 1.5) + mul_imvec2(n, offset);
+                                    // 1/4 원의 중심(base) 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
+                                    let base = p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset);
                                     // 1/4 원의 반지름(크기): 메인 신호기보다 작음
                                     let size = scale * 1.5;
 
-                                    // tangent 벡터 정규화
-                                    let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
+                                    // adjusted_tangent 벡터 정규화
+                                    let tangent_len = (adjusted_tangent.x * adjusted_tangent.x + adjusted_tangent.y * adjusted_tangent.y).sqrt();
                                     let t = if tangent_len > 0.0 {
-                                        ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
+                                        ImVec2 { x: adjusted_tangent.x / tangent_len, y: adjusted_tangent.y / tangent_len }
                                     } else { ImVec2 { x: 1.0, y: 0.0 } };
 
-                                    // tangent 벡터의 각도
+                                    // adjusted_tangent 벡터의 각도
                                     let t_angle = t.y.atan2(t.x);
 
                                     // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
@@ -452,17 +551,17 @@ impl Object {
                                 // ===== 메인 신호기 외곽선 그리기 =====
                                 // 메인 신호기 테두리 1/4 원 (항상 그려짐)
                                 // 중심(base) 위치: 기둥 끝에서 normal 방향으로 이동
-                                let base = p + mul_imvec2(tangent, stem) + mul_imvec2(n, offset);
+                                let base = p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset);
                                 // 반지름(크기): 원거리 신호기보다 큼
                                 let size = scale * 2.0;
 
-                                // tangent 벡터 정규화
-                                let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
+                                // adjusted_tangent 벡터 정규화
+                                let tangent_len = (adjusted_tangent.x * adjusted_tangent.x + adjusted_tangent.y * adjusted_tangent.y).sqrt();
                                 let t = if tangent_len > 0.0 {
-                                    ImVec2 { x: tangent.x / tangent_len, y: tangent.y / tangent_len }
+                                    ImVec2 { x: adjusted_tangent.x / tangent_len, y: adjusted_tangent.y / tangent_len }
                                 } else { ImVec2 { x: 1.0, y: 0.0 } };
 
-                                // tangent 벡터의 각도
+                                // adjusted_tangent 벡터의 각도
                                 let t_angle = t.y.atan2(t.x);
 
                                 // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
@@ -496,7 +595,7 @@ impl Object {
                                     let id_len = id.len() as f32;
 
                                     // X축 오프셋: 신호기 방향에 따라 다르게 적용
-                                    let x_offset = if self.tangent.x < 0 {
+                                    let x_offset = if adjusted_tangent.x < 0.0 {
                                         // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
                                         0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
                                     } else {
@@ -505,7 +604,7 @@ impl Object {
                                     };
 
                                     // Y축 오프셋: 신호기 방향과 관계없이 동일
-                                    let y_offset = if self.tangent.x < 0 {
+                                    let y_offset = if adjusted_tangent.x < 0.0 {
                                         -7.5 // 왼쪽을 향할 때 y offset -7.5
                                     } else {
                                         -7.5 // 오른쪽을 향할 때 y offset -7.5
