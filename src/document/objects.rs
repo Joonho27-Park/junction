@@ -72,7 +72,14 @@ pub enum SwitchType {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
-pub enum ObjectState { SignalStop, SignalProceed, DistantStop, DistantProceed }
+pub enum ObjectState { 
+    SignalStop, 
+    SignalProceed, 
+    DistantStop, 
+    DistantProceed,
+    SwitchStraight,  // 스위치 직선 상태
+    SwitchDiverging, // 스위치 분기 상태
+}
 
 pub const SIGNAL_OFFSET: f32 = 0.35;
 pub const SWITCH_OFFSET: f32 = 0.5;
@@ -163,25 +170,27 @@ impl Object {
                 return Some(());
             } else if self.functions.iter().find(|c| matches!(c, Function::Switch { id: _ })).is_some() {
                 // Switch는 NDType::Sw(side) 노드의 위치 반경 내에서만 배치 가능
-                // 신호기와 동일한 방식으로 tangent 방향 조정
+                // 자동 설치 방식과 동일한 오프셋 적용
                 let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                     1.0 } else { -1.0 };
-                let offset = SWITCH_OFFSET*normal*factor;
-                let place_pos = glm::vec2(
-                    (pt_on_line.x * 2.0).round() / 2.0 + offset.x,
-                    (pt_on_line.y * 2.0).round() / 2.0 + offset.y
-                );
-                let mut found = false;
                 
-                // 신호기와 동일하게 tangent 방향 조정
-                if factor > 0.0 {
-                    self.tangent *= -1;
-                }
+                // 자동 설치 방식과 동일한 오프셋 계산
+                let normal_len = glm::length(&normal);
+                let normalized_normal = if normal_len > 0.0 { normal / normal_len } else { normal };
+                let offset = 0.5 * normalized_normal * factor;
+                
+                let place_pos = glm::vec2(
+                    (pt_on_line.x * 2.0).round() / 2.0,
+                    (pt_on_line.y * 2.0).round() / 2.0
+                ) + offset;
+                
+
 
                 // analysis를 통해 topology의 locations에서 스위치 노드 찾기
+                let mut found = false;
                 if let Some((_, topology)) = analysis.data().topology.as_ref() {
                     for (sw_pt, (ndtype, _)) in topology.locations.iter() {
-                        if let NDType::Sw(_) = ndtype {
+                        if let NDType::Sw(_, _) = ndtype {
                             let sw_pt_f = glm::vec2(sw_pt.x as f32, sw_pt.y as f32);
                             if glm::distance(&place_pos, &sw_pt_f) <= 1.2 {
                                 found = true;
@@ -190,6 +199,8 @@ impl Object {
                         }
                     }
                 }
+                
+                // 스위치 노드가 있는 위치에서만 배치 가능
                 if found {
                     self.loc = place_pos;
                     // 스위치가 성공적으로 배치될 때만 기울기 출력 및 각도 저장
@@ -209,8 +220,9 @@ impl Object {
                     self.placed_angle = Some(normalized_angle);
                     return Some(());
                 } else {
+                    // 스위치 노드가 없는 위치에서는 배치 불가
                     self.loc = place_pos;
-                    return Some(());
+                    return None;
                 }
             }
 
@@ -652,14 +664,15 @@ impl Object {
                             ImVec2 { x: normal.x / normal_len, y: normal.y / normal_len }
                         } else { ImVec2 { x: 0.0, y: 1.0 } };
 
-                        // stem(세로 직사각형) 중심:
-                        let stem_center = p; // 마우스 포인터가 stem 중심
+                        // 마우스 포인터가 동그라미 중심이 되도록 변경
+                        let circle_center = p; // 마우스 포인터가 동그라미 중심
 
-                        // 원(circle) 위치 및 크기 (stem_center 기준 normal 방향)
+                        // 원(circle) 위치 및 크기
                         let circle_size = scale * 1.5;
                         let circle_diameter = circle_size * 2.0;
                         let stem_width = circle_diameter * 2.5;
                         let circle_offset = stem_width/2.0 + circle_size + 1.0;
+                        
                         // tangent unit vector 계산
                         let tangent_len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
                         let tangent_unit = if tangent_len > 0.0 {
@@ -667,7 +680,20 @@ impl Object {
                         } else {
                             ImVec2 { x: 1.0, y: 0.0 }
                         };
-                        let circle_pos = stem_center + mul_imvec2(tangent_unit, circle_offset);
+                        
+                        // 스위치의 placed_angle을 사용해서 동그라미 위치 결정
+                        let stem_center = if let Some(angle) = self.placed_angle {
+                            if angle >= 90.0 && angle <= 270.0 {
+                                // 90도~270도: 동그라미가 왼쪽에
+                                circle_center - mul_imvec2(tangent_unit, circle_offset)
+                            } else {
+                                // 0도~90도 또는 270도~360도: 동그라미가 오른쪽에
+                                circle_center + mul_imvec2(tangent_unit, circle_offset)
+                            }
+                        } else {
+                            // placed_angle이 없으면 기본값 (오른쪽)
+                            circle_center + mul_imvec2(tangent_unit, circle_offset)
+                        };
 
                         // stem(세로 직사각형) 네 꼭짓점 (width=circle_diameter*2.5, height=stem_height)
                         let stem_width = circle_diameter * 2.5;
@@ -685,7 +711,7 @@ impl Object {
                         ImDrawList_AddLine(draw_list, stem_bl, stem_tl, c, 2.0);
 
                         // ===== 스위치 원(circle) 외곽선만 그리기 =====
-                        ImDrawList_AddCircle(draw_list, circle_pos, circle_size, c, 20, 2.0);
+                        ImDrawList_AddCircle(draw_list, circle_center, circle_size, c, 20, 2.0);
 
                         // ===== 스위치 ID 텍스트 렌더링 =====
                         if let Function::Switch { id: Some(id) } = f {
