@@ -430,17 +430,11 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
                     };
                     switches.insert(*pt, switch_status);
                     
-                    // 스위치 상태 변경 로그 출력 (직선/분기로 표시)
-                    println!("스위치 상태 변경: 객체 ID {}, 위치 {:?}", sw_obj_id, pos);
-                    println!("  -> 스위치 위치: {:?}, 상태: {:?}", pt, switch_status);
-                    
                     // 스위치가 직선인지 분기인지 판별하여 출력
                     // 스위치 객체에서 설치 정보(branch_side)를 가져와서 현재 위치와 비교
                     if let Some(switch_obj) = dgraph.rolling_inf.objects.get(*sw_obj_id) {
                         if let rolling_inf::StaticObject::Switch { branch_side, .. } = switch_obj {
                             let is_straight = branch_side == pos;
-                            let state_str = if is_straight { "직선" } else { "분기" };
-                            println!("  -> 스위치 상태: {} (설치분기방향: {:?}, 현재위치: {:?})", state_str, branch_side, pos);
                             
                             // 스위치 객체의 ObjectState 설정
                             if let Some(pta) = dgraph.object_ids.get_by_left(sw_obj_id) {
