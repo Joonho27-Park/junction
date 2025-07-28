@@ -458,12 +458,12 @@ impl Object {
 
                                     // ===== 1/4 원의 중심(base) 위치 결정 =====
                                     let base = match s {
-                                        ObjectState::DistantStop | ObjectState::DistantProceed =>
-                                            // 원거리 신호: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
-                                            p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset),
-                                        _ =>
-                                            // 메인 신호: 기둥 끝에서 normal 방향으로 이동
-                                            p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset),
+                                                    ObjectState::DistantStop | ObjectState::DistantProceed =>
+                                                        // 원거리 신호: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
+                                                        p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset),
+                                                    _ =>
+                                                        // 메인 신호: 기둥 끝에서 normal 방향으로 이동
+                                                        p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset),
                                     };
 
                                     // ===== 1/4 원의 반지름(크기) 결정 =====
@@ -484,11 +484,34 @@ impl Object {
                                     let t_angle = t.y.atan2(t.x);
 
                                     // ===== 1/4 원의 각도 범위 계산 =====
-                                    // 아크의 시작 각도: tangent 방향 (신호기가 향하는 방향)
-                                    let a0 = t_angle;
-                                    // 아크의 끝 각도: 시작 각도에서 90도(π/2) 더한 값
-                                    // 즉, tangent 방향에서 90도 시계방향으로 회전한 지점까지
-                                    let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                    // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때는 반시계방향으로 그리기
+                                    let (a0, a1) = if let Some(signal_props) = &self.signal_props {
+                                        let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                        
+                                        match (is_track_above, signal_props.direction) {
+                                            // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때 (반시계방향)
+                                            (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                                // 아크의 시작 각도: tangent 방향에서 90도 반시계방향으로 회전한 지점
+                                                let a0 = t_angle - std::f32::consts::FRAC_PI_2;
+                                                // 아크의 끝 각도: tangent 방향 (신호기가 향하는 방향)
+                                                let a1 = t_angle;
+                                                (a0, a1)
+                                            },
+                                            // 그 외의 경우 (기존 로직 - 시계방향)
+                                            _ => {
+                                                // 아크의 시작 각도: tangent 방향 (신호기가 향하는 방향)
+                                                let a0 = t_angle;
+                                                // 아크의 끝 각도: 시작 각도에서 90도 시계방향으로 회전한 지점까지
+                                                let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                                (a0, a1)
+                                            },
+                                        }
+                                    } else {
+                                        // signal_props가 없는 경우 기본 로직 사용 (시계방향)
+                                        let a0 = t_angle;
+                                        let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                        (a0, a1)
+                                    };
 
                                     // 아크를 그릴 때 사용할 세그먼트 개수(곡선의 부드러움)
                                     let num_segments = 16;
@@ -522,8 +545,26 @@ impl Object {
                                 // 원거리 신호기 테두리 1/4 원 (원거리 신호기가 있을 때만)
                                 if *has_distant {
                                     // ===== 원거리 신호기 외곽선 계산 =====
-                                    // 1/4 원의 중심(base) 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
-                                    let base = p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset);
+                                    // 트랙 위/아래와 방향에 따라 다른 위치 계산
+                                    let base = if let Some(signal_props) = &self.signal_props {
+                                        let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                        
+                                        match (is_track_above, signal_props.direction) {
+                                            // 트랙 위에서 left 방향이거나 트랙 아래에서 right 방향일 때 (기존 로직)
+                                            (true, TrackDirection::Left) | (false, TrackDirection::Right) => {
+                                                // 1/4 원의 중심(base) 위치: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
+                                                p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset)
+                                            },
+                                            // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때 (새로운 로직)
+                                            (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                                // 1/4 원의 중심(base) 위치: 기둥에서 1.5*adjusted_tangent - normal 방향으로 이동 (반대 방향)
+                                                p + mul_imvec2(adjusted_tangent, 1.5) - mul_imvec2(n, offset)
+                                            },
+                                        }
+                                    } else {
+                                        // signal_props가 없는 경우 기본 로직 사용
+                                        p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset)
+                                    };
                                     // 1/4 원의 반지름(크기): 메인 신호기보다 작음
                                     let size = scale * 1.5;
 
@@ -536,9 +577,30 @@ impl Object {
                                     // adjusted_tangent 벡터의 각도
                                     let t_angle = t.y.atan2(t.x);
 
-                                    // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
-                                    let a0 = t_angle;
-                                    let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                    // 아크의 시작/끝 각도 계산
+                                    let (a0, a1) = if let Some(signal_props) = &self.signal_props {
+                                        let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                        
+                                        match (is_track_above, signal_props.direction) {
+                                            // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때 (반시계방향)
+                                            (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                                let a0 = t_angle - std::f32::consts::FRAC_PI_2;
+                                                let a1 = t_angle;
+                                                (a0, a1)
+                                            },
+                                            // 그 외의 경우 (기존 로직 - 시계방향)
+                                            _ => {
+                                                let a0 = t_angle;
+                                                let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                                (a0, a1)
+                                            },
+                                        }
+                                    } else {
+                                        // signal_props가 없는 경우 기본 로직 사용 (시계방향)
+                                        let a0 = t_angle;
+                                        let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                        (a0, a1)
+                                    };
                                     let num_segments = 16;
 
                                     // 아크의 시작점 좌표 계산
@@ -562,8 +624,26 @@ impl Object {
 
                                 // ===== 메인 신호기 외곽선 그리기 =====
                                 // 메인 신호기 테두리 1/4 원 (항상 그려짐)
-                                // 중심(base) 위치: 기둥 끝에서 normal 방향으로 이동
-                                let base = p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset);
+                                // 트랙 위/아래와 방향에 따라 다른 위치 계산
+                                let base = if let Some(signal_props) = &self.signal_props {
+                                    let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                    
+                                    match (is_track_above, signal_props.direction) {
+                                        // 트랙 위에서 left 방향이거나 트랙 아래에서 right 방향일 때 (기존 로직)
+                                        (true, TrackDirection::Left) | (false, TrackDirection::Right) => {
+                                            // 중심(base) 위치: 기둥 끝에서 normal 방향으로 이동
+                                            p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset)
+                                        },
+                                        // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때 (새로운 로직)
+                                        (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                            // 중심(base) 위치: 기둥 끝에서 -normal 방향으로 이동 (반대 방향)
+                                            p + mul_imvec2(adjusted_tangent, stem) - mul_imvec2(n, offset)
+                                        },
+                                    }
+                                } else {
+                                    // signal_props가 없는 경우 기본 로직 사용
+                                    p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset)
+                                };
                                 // 반지름(크기): 원거리 신호기보다 큼
                                 let size = scale * 2.0;
 
@@ -576,9 +656,30 @@ impl Object {
                                 // adjusted_tangent 벡터의 각도
                                 let t_angle = t.y.atan2(t.x);
 
-                                // 아크의 시작/끝 각도 (항상 tangent 방향 기준 0~π/2)
-                                let a0 = t_angle;
-                                let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                // 아크의 시작/끝 각도 계산
+                                let (a0, a1) = if let Some(signal_props) = &self.signal_props {
+                                    let is_track_above = tangent.x < 0.0; // tangent.x가 음수면 트랙 위
+                                    
+                                    match (is_track_above, signal_props.direction) {
+                                        // 트랙 위에서 right 방향이거나 트랙 아래에서 left 방향일 때 (반시계방향)
+                                        (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                            let a0 = t_angle - std::f32::consts::FRAC_PI_2;
+                                            let a1 = t_angle;
+                                            (a0, a1)
+                                        },
+                                        // 그 외의 경우 (기존 로직 - 시계방향)
+                                        _ => {
+                                            let a0 = t_angle;
+                                            let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                            (a0, a1)
+                                        },
+                                    }
+                                } else {
+                                    // signal_props가 없는 경우 기본 로직 사용 (시계방향)
+                                    let a0 = t_angle;
+                                    let a1 = a0 + std::f32::consts::FRAC_PI_2;
+                                    (a0, a1)
+                                };
                                 let num_segments = 16;
 
                                 // 아크의 시작점 좌표 계산
