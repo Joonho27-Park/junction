@@ -78,6 +78,35 @@ pub enum Highlight {
     Tvd(usize),
 }
 
+// ID 텍스트 드래그 상태 관리
+#[derive(Debug, Clone)]
+pub struct IdDragState {
+    pub is_dragging: bool,
+    pub dragged_id: Option<String>,
+    pub source_pta: Option<PtA>,
+    pub drag_start_pos: Option<PtC>,
+    pub drag_offset: glm::Vec2,
+    pub drag_preview_pos: Option<PtC>,
+    pub mouse_was_pressed: bool,  // 마우스가 이전 프레임에 눌려있었는지 추적
+    pub id_clickable: bool,       // ID가 클릭 가능한 상태인지 (생성 직후에는 false)
+    pub creation_time: Option<f64>, // TrackLabel 생성 시간 (클릭 방지용)
+}
+
+impl IdDragState {
+    pub fn new() -> Self {
+        Self {
+            is_dragging: false,
+            dragged_id: None,
+            source_pta: None,
+            drag_start_pos: None,
+            drag_offset: glm::zero(),
+            drag_preview_pos: None,
+            mouse_was_pressed: false,
+            id_clickable: false,  // 초기에는 클릭 불가능
+            creation_time: None,
+        }
+    }
+}
 
 
 pub fn inf_view(config :&Config, 
@@ -152,6 +181,9 @@ fn scroll(inf_view :&mut InfView) {
 
 
 fn interact(config :&Config, analysis :&mut Analysis, inf_view :&mut InfView, draw :&Draw) {
+    // ID 텍스트 드래그 처리 (다른 상호작용보다 우선)
+    handle_id_drag(config, analysis, inf_view, draw);
+    
     match &inf_view.action {
         Action::Normal(normal) => { 
             let normal = *normal;
@@ -234,7 +266,20 @@ fn interact_normal(config :&Config, analysis :&mut Analysis,
                         if !(*io).KeyShift { inf_view.selection.clear(); }
                         if let Some((r,_)) = analysis.get_closest(
                                 inf_view.view.screen_to_world_ptc(draw.mouse)) {
+                                                // Track segment 클릭 시 해당 TrackLabel 찾기
+                    if let Ref::LineSeg(start_pt, end_pt) = r {
+                        
+                        
+                        if let Some(track_label_pta) = find_track_label_for_segment(analysis, (start_pt, end_pt)) {
+                                                    inf_view.selection.insert(Ref::Object(track_label_pta));
+                    } else {
+                            // TrackLabel을 찾지 못한 경우 기존 동작 유지
                             inf_view.selection.insert(r);
+                        }
+                    } else {
+                        // Track segment가 아닌 경우 기존 동작 유지
+                        inf_view.selection.insert(r);
+                    }
                         }
                     }
                 }
@@ -336,6 +381,14 @@ fn interact_drawing(config :&Config, analysis :&mut Analysis, inf_view :&mut Inf
                     }
                     analysis.set_model(new_model, None);
                     inf_view.selection = std::iter::empty().collect();
+                    
+                    // 트랙 생성 완료 후 트랙의 중간 좌표를 계산하여 ID 입력창 띄우기
+                    let track_mid = glm::vec2(
+                        (pt.x + pt_end.x) as f32 / 2.0,
+                        (pt.y + pt_end.y) as f32 / 2.0
+                    );
+                    let track_segment = (pt, pt_end);
+                    create_track_with_id_input(analysis, inf_view, track_mid, None);
                 }
                 inf_view.action = Action::DrawingLine(None);
             }
@@ -427,7 +480,10 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
         if inf_view.focused { return; }
         let io = igGetIO();
         if igIsMouseClicked(1, false) {
-            inf_view.focused = true;
+            // ID 드래그 중이 아닐 때만 focused 설정
+            if !inf_view.track_label_drag.is_dragging {
+                inf_view.focused = true;
+            }
             return;
         }
         if let Some(mut obj) = obj {
@@ -440,7 +496,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
             let preview_color = config.color_u32(RailUIColorName::CanvasSymbol);
             
             obj.draw(draw.pos,&inf_view.view,draw.draw_list,
-                    preview_color,&[],&config);
+                    preview_color,&[],&config, Some(inf_view), analysis.model());
 
             // move_to가 성공했는지 확인 (Some(())이면 성공, None이면 실패)
             let placement_successful = moved.is_some();
@@ -478,12 +534,11 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                    4.0);
                             } else  {
                     if igIsMouseReleased(0) && !inf_view.focused {
-                        println!("interact_insert: focused == {:?}", inf_view.focused);
+        
                         // MainSignal 또는 Switch인 경우 이름 입력 다이얼로그 표시
                         if let Some(Function::Signal { .. }) = obj.functions.first() {
                             match obj.signal_props.as_ref().map(|props| props.signal_type.clone()) {
                                 Some(SignalType::Home) | Some(SignalType::Departure) => {
-                                    println!("obj.loc a: {:?}", obj.loc);
                                     inf_view.id_input = Some(IdInputState {
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
@@ -492,7 +547,6 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                                     });
                                 },
                                 Some(SignalType::Shunting) => {
-                                    println!("obj.loc b: {:?}", obj.loc);
                                     inf_view.id_input = Some(IdInputState {
                                         object: obj.clone(),  // move_to가 호출된 후의 obj 사용
                                         id: String::new(),
@@ -504,7 +558,7 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                             }
                         } else if obj.functions.iter().any(|f| matches!(f, Function::Switch { .. })) {
                             // 스위치 객체인 경우 미리보기 그대로 설치
-                            inf_view.id_input = Some(IdInputState {
+                                inf_view.id_input = Some(IdInputState {
                                 object: obj.clone(),
                                 id: String::new(),
                                 position: obj.loc.clone(),
@@ -516,6 +570,13 @@ fn interact_insert(config :&Config, analysis :&mut Analysis,
                         m.objects.insert(round_coord(obj.loc), obj.clone());
                         None
                     });
+                    
+                    // detector가 배치된 경우 track 분할 확인
+                    if obj.functions.iter().any(|f| matches!(f, Function::Detector)) {
+                        if let Some(track_to_split) = find_track_at_position(analysis, obj.loc) {
+                            split_track_at_detector(analysis, inf_view, obj.loc, track_to_split);
+                        }
+                    }
                     }
                 }
             }
@@ -1032,7 +1093,6 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             // 다이얼로그가 닫힌 후 처리
             if should_confirm {
                 // 데이터를 복사해서 처리
-                println!("draw_id_input_dialog: id_input.id == {:?}", id_input.id);
                 let mut object = id_input.object.clone();
                 let id = id_input.id.clone();
                 let position = id_input.position;
@@ -1046,12 +1106,48 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 } else if let Some(Function::Switch { .. }) = object.functions.first() {
                     let new_function = Function::Switch { id: Some(id.clone()) };
                     object.functions = vec![new_function];
+                } else if let Some(Function::TrackLabel { .. }) = object.functions.first() {
+                    // TrackLabel은 단순한 표시 객체로 생성
+                    let new_function = Function::TrackLabel { 
+                        id: Some(id.clone()),
+                        display_text: Some(id.clone())
+                    };
+                    
+                    // TrackLabel 생성 시 바운더리 제한 적용
+                    let mut track_label = Object {
+                        loc: position,
+                        functions: vec![new_function.clone()],
+                        ..Object::default()
+                    };
+                    
+                    // 바운더리 제한을 적용하여 최종 위치 결정
+                    if let Some(_factor) = track_label.move_to_with_factor(analysis.model(), analysis, position) {
+                        // 바운더리 제한이 적용된 위치로 생성
+                        analysis.edit_model(|m| {
+                            m.objects.insert(round_coord(track_label.loc), track_label);
+                            None
+                        });
+                    } else {
+                        // 바운더리 제한이 적용되지 않은 경우 원래 위치로 생성
+                        analysis.edit_model(|m| {
+                            m.objects.insert(round_coord(position), track_label);
+                            None
+                        });
+                    }
+                } else {
+                    // TrackLabel이 아닌 경우 기존 로직 사용
+                    analysis.edit_model(|m| {
+                        m.objects.insert(round_coord(position), object);
+                        None
+                    });
                 }
-                // Object를 모델에 추가
-                analysis.edit_model(|m| {
-                    m.objects.insert(round_coord(position), object);
-                    None
-                });
+                
+                // TrackLabel이 생성된 경우 클릭 불가능한 상태로 설정
+                if matches!(id_input.function_type, Function::TrackLabel { .. }) {
+                    inf_view.track_label_drag.id_clickable = false;
+                    inf_view.track_label_drag.creation_time = Some(unsafe { igGetTime() });
+                }
+                
                 // ID 입력 상태 초기화
                 inf_view.id_input = None;
                 inf_view.focused = false; // 입력창 닫힐 때 포커스 false
@@ -1062,5 +1158,309 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             }
         }
     }
+}
+
+// 트랙 생성 시 ID 입력창을 띄우고, 입력받은 ID로 TrackLabel을 생성하는 함수
+fn create_track_with_id_input(analysis: &mut Analysis, inf_view: &mut InfView, track_mid: PtC, suggested_id: Option<String>) {
+
+    
+    // TrackLabelObject 생성 준비 (단순한 표시용)
+    let object = Object {
+        loc: track_mid,
+        tangent: glm::vec2(1, 0), // i32로 수정
+        functions: vec![Function::TrackLabel { 
+            id: None,
+            display_text: None
+        }],
+        id: None,
+        signal_props: None,
+        switch_props: None,
+        placed_angle: None,
+    };
+    inf_view.id_input = Some(IdInputState {
+        object,
+        id: suggested_id.unwrap_or_default(),
+        position: track_mid,
+        function_type: Function::TrackLabel { 
+            id: None,
+            display_text: None
+        },
+    });
+    inf_view.focused = true;
+}
+
+
+
+// detector가 track 위에 올려졌을 때 해당 track을 찾는 함수
+fn find_track_at_position(analysis: &Analysis, detector_pos: PtC) -> Option<(PtA, Object)> {
+
+    let model = analysis.model();
+    
+    // detector 위치 근처의 track label object 찾기
+    let mut closest_track = None;
+    let mut min_distance = f32::INFINITY;
+    
+    for (pta, obj) in model.objects.iter() {
+        if obj.functions.iter().any(|f| matches!(f, Function::TrackLabel { .. })) {
+            // detector와 track label 사이의 거리 계산
+            let distance = glm::distance(&obj.loc, &detector_pos);
+            
+            // 가장 가까운 TrackLabel 찾기
+            if distance < min_distance {
+                min_distance = distance;
+                closest_track = Some((*pta, obj.clone()));
+            }
+        }
+    }
+    
+    // 거리 임계값을 대폭 늘려서 더 멀리 있는 TrackLabel도 매칭되도록 함
+    if let Some(track) = closest_track {
+        if min_distance < 20.0 {
+            return Some(track);
+        }
+    }
+    None
+}
+
+// track segment를 클릭했을 때 해당 track의 TrackLabel을 찾는 함수
+fn find_track_label_for_segment(analysis: &Analysis, segment: (Pt, Pt)) -> Option<PtA> {
+
+    let model = analysis.model();
+
+    // 해당 segment에 연결된 TrackLabel 찾기
+    for (pta, obj) in model.objects.iter() {
+                                if let Some(Function::TrackLabel { id: _, display_text: _ }) =
+            obj.functions.first() {
+            // TrackLabel은 이제 단순한 표시 객체이므로 segment 매칭은 하지 않음
+            // 대신 위치 기반으로 가장 가까운 TrackLabel을 반환
+            return Some(*pta);
+        }
+    }
+
+
+    None
+}
+
+// 두 segment가 같은 track을 나타내는지 확인하는 함수
+fn segments_match(segment1: (Pt, Pt), segment2: (Pt, Pt)) -> bool {
+
+    
+    // 정확히 일치하는 경우
+    if (segment1.0 == segment2.0 && segment1.1 == segment2.1) ||
+       (segment1.0 == segment2.1 && segment1.1 == segment2.0) {
+        return true;
+    }
+    
+    // segment1이 segment2의 부분집합인지 확인
+    // segment2가 더 긴 track이고, segment1이 그 안에 포함되는지 확인
+    let (s1_start, s1_end) = if segment1.0.x <= segment1.1.x {
+        (segment1.0, segment1.1)
+    } else {
+        (segment1.1, segment1.0)
+    };
+    
+    let (s2_start, s2_end) = if segment2.0.x <= segment2.1.x {
+        (segment2.0, segment2.1)
+    } else {
+        (segment2.1, segment2.0)
+    };
+    
+
+    // segment1이 segment2의 범위 안에 있는지 확인
+    let x_in_range = s1_start.x >= s2_start.x && s1_end.x <= s2_end.x;
+    let y_match = s1_start.y == s2_start.y && s1_end.y == s2_end.y;
+    
+    x_in_range && y_match
+}
+
+// track을 논리적으로 분할하는 함수
+fn split_track_at_detector(analysis: &mut Analysis, inf_view: &mut InfView, 
+                          detector_pos: PtC, original_track: (PtA, Object)) {
+
+    let (original_pta, original_obj) = original_track;
+    
+    // 기존 track의 ID 추출
+    let original_id = if let Some(Function::TrackLabel { id, display_text: _ }) = original_obj.functions.first() {
+        id.as_ref().unwrap_or(&String::new()).clone()
+    } else {
+        String::new()
+    };
+    
+
+    
+    // 분할된 두 track의 중간 위치 계산
+    let track_start = original_obj.loc;
+    
+    // 두 번째 track (detector 이후) - 새로운 TrackLabel 생성
+    let track_direction = glm::normalize(&(detector_pos - track_start));
+    let track_length = glm::distance(&track_start, &detector_pos);
+    let second_track_end = detector_pos + track_direction * track_length;
+    
+    let second_track_mid = glm::vec2(
+        (detector_pos.x + second_track_end.x) / 2.0,
+        (detector_pos.y + second_track_end.y) / 2.0
+    );
+    
+
+    
+    // 두 번째 track ID 입력창만 띄우기 (첫 번째는 기존 ID 유지)
+    // 기존 ID가 비어있으면 기본 ID 사용
+    let base_id = if original_id.is_empty() { "TRACK".to_string() } else { original_id };
+    let second_track_id = if base_id.ends_with("_B") {
+        // 이미 "_B" 접미사가 있으면 "_C"로 변경
+        base_id.trim_end_matches("_B").to_string() + "_C"
+    } else {
+        base_id + "_B"
+    };
+    
+
+    create_track_with_id_input(analysis, inf_view, second_track_mid, Some(second_track_id));
+}
+
+// ID 텍스트 드래그 감지 및 처리
+fn handle_id_drag(config: &Config, analysis: &mut Analysis, inf_view: &mut InfView, draw: &Draw) {
+    unsafe {
+        if inf_view.focused { 
+            return; 
+        }
+        
+        let io = igGetIO();
+        let mouse_pos = inf_view.view.screen_to_world_ptc(draw.mouse);
+        let is_mouse_pressed = (*io).MouseDown[0];
+        
+        // 드래그 중이 아닐 때: ID 텍스트 클릭 감지
+        if !inf_view.track_label_drag.is_dragging {
+            // 마우스가 방금 눌렸을 때만 클릭으로 감지 (이전 프레임에는 눌려있지 않았고, 현재 프레임에 눌려있음)
+            if is_mouse_pressed && !inf_view.track_label_drag.mouse_was_pressed {
+                let found_id = find_id_at_position(analysis, mouse_pos);
+                if let Some((pta, id)) = found_id {
+                    // ID가 클릭 가능한 상태일 때만 드래그 시작 (TrackLabel 선택하지 않음)
+                    if inf_view.track_label_drag.id_clickable {
+                        // TrackLabel 생성 후 0.5초 동안 클릭 방지
+                        let current_time = unsafe { igGetTime() };
+                        let can_click = if let Some(creation_time) = inf_view.track_label_drag.creation_time {
+                            current_time - creation_time > 0.5
+                        } else {
+                            true
+                        };
+                        
+                        if can_click {
+                            inf_view.track_label_drag.is_dragging = true;
+                            inf_view.track_label_drag.dragged_id = Some(id.clone());
+                            inf_view.track_label_drag.source_pta = Some(pta);
+                            inf_view.track_label_drag.drag_start_pos = Some(mouse_pos);
+                            inf_view.track_label_drag.drag_preview_pos = Some(mouse_pos);
+                        }
+                    }
+                }
+            }
+            
+            // 마우스가 놓였을 때 ID를 클릭 가능한 상태로 변경 (드래그 중이 아닐 때만)
+            if !is_mouse_pressed && inf_view.track_label_drag.mouse_was_pressed {
+                if !inf_view.track_label_drag.id_clickable {
+                    inf_view.track_label_drag.id_clickable = true;
+                }
+            }
+        } else {
+            // 드래그 중일 때: 미리보기 위치만 업데이트 (실제 이동은 하지 않음)
+            inf_view.track_label_drag.drag_preview_pos = Some(mouse_pos);
+            
+            // 드래그 종료 감지 (마우스 버튼을 놓을 때만 실제 이동)
+            if !is_mouse_pressed && inf_view.track_label_drag.mouse_was_pressed {
+                if let Some(dragged_id) = &inf_view.track_label_drag.dragged_id {
+                    if let Some(source_pta) = inf_view.track_label_drag.source_pta {
+                        // 드롭 위치에서 새로운 TrackLabel 생성
+                        handle_id_drop(analysis, inf_view, mouse_pos, dragged_id.clone(), source_pta);
+                    }
+                }
+                
+                // 드래그 상태 초기화
+                inf_view.track_label_drag.is_dragging = false;
+                inf_view.track_label_drag.dragged_id = None;
+                inf_view.track_label_drag.source_pta = None;
+                inf_view.track_label_drag.drag_start_pos = None;
+                inf_view.track_label_drag.drag_preview_pos = None;
+                inf_view.track_label_drag.drag_offset = glm::vec2(0.0, 0.0);
+                // 드래그가 완료되면 ID를 다시 클릭 가능한 상태로 설정
+                inf_view.track_label_drag.id_clickable = true;
+            }
+        }
+        
+        // 마우스 상태 업데이트
+        inf_view.track_label_drag.mouse_was_pressed = is_mouse_pressed;
+    }
+}
+
+// ID 드롭 처리
+fn handle_id_drop(analysis: &mut Analysis, inf_view: &mut InfView, drop_pos: PtC, id: String, source_pta: PtA) {
+    // 새로운 TrackLabel 생성 (단순한 표시 객체)
+    let mut new_track_label = Object {
+        loc: drop_pos,
+        functions: vec![Function::TrackLabel { 
+            id: Some(id.clone()),
+            display_text: Some(id.clone())
+        }],
+        ..Object::default()
+    };
+    
+    // Track 주변에 자동 배치
+    let (final_loc, factor) = if let Some(factor) = new_track_label.move_to_with_factor(analysis.model(), analysis, drop_pos) {
+        (new_track_label.loc, factor)
+    } else {
+        (drop_pos, 0.0)
+    };
+    
+    analysis.edit_model(|m| {
+        m.objects.insert(round_coord(final_loc), new_track_label);
+        None
+    });
+    
+    // 원본에서 ID 제거 (새 TrackLabel 생성 후)
+    analysis.edit_model(|m| {
+        if let Some(obj) = m.objects.get_mut(&source_pta) {
+            for function in &mut obj.functions {
+                if let Function::TrackLabel { id: ref mut existing_id, display_text: ref mut display } = function {
+                    if existing_id.as_ref() == Some(&id) {
+                        *existing_id = None;
+                        *display = None;
+                        break;
+                    }
+                }
+            }
+        }
+        None
+    });
+    
+    // ID 이동 후 클릭 불가능한 상태로 다시 설정
+    inf_view.track_label_drag.id_clickable = false;
+    inf_view.track_label_drag.creation_time = Some(unsafe { igGetTime() });
+}
+
+// 마우스 위치에서 ID 찾기
+fn find_id_at_position(analysis: &Analysis, mouse_pos: PtC) -> Option<(PtA, String)> {
+    let model = analysis.model();
+    let mut closest_id = None;
+    let mut min_distance = f32::INFINITY;
+    let click_threshold = 1.0; // ID 텍스트 클릭 감지 거리를 더 엄격하게 설정 (1.5 -> 1.0)
+    
+    for (pta, obj) in model.objects.iter() {
+        if obj.functions.iter().any(|f| matches!(f, Function::TrackLabel { .. })) {
+            let distance = glm::distance(&obj.loc, &mouse_pos);
+            
+            if distance < min_distance && distance < click_threshold {
+                // TrackLabel의 ID 찾기
+                for function in &obj.functions {
+                    if let Function::TrackLabel { id, display_text } = function {
+                        if let Some(id_str) = id {
+                            min_distance = distance;
+                            closest_id = Some((*pta, id_str.clone()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    closest_id
 }
 

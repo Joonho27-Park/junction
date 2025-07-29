@@ -117,7 +117,7 @@ impl Analysis {
             let interlocking = Arc::new(interlocking);
                 // calc interlocking from dgraph
             let send_ok = tx.send(SetData::Interlocking(gen, interlocking.clone()));
-            if !send_ok.is_ok() { println!("job canceled after interlocking"); return; }
+            if !send_ok.is_ok() { return; }
             info!("Interlocking successful with {:?} routes", interlocking.routes.len());
 
             for (i,dispatch) in model.dispatches.iter() {

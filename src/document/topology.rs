@@ -155,9 +155,6 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                 for f in functions.iter() {
                     if let Some(object) = model.objects.get(&id) {
                         match f {
-                            Function::Detector => {
-                                track_objs.push((pos,*id,Function::Detector,None));
-                            },
                             Function::Signal { has_distant, id: _ } => {
                                 let style = object.signal_props.as_ref().map(|props| props.signal_type.clone());
                                 match style {
@@ -174,9 +171,13 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                                     _ => {}
                                 }
                             },
+                            Function::Detector => {
+                                track_objs.push((pos,*id,Function::Detector,None));
+                            },
                             Function::Switch { id: _ } => {
                                 track_objs.push((pos,*id,Function::Switch { id: None },None));
-                            }
+                            },
+                            Function::TrackLabel { .. } => {},
                         }
                     }
                 }

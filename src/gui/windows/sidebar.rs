@@ -572,6 +572,7 @@ fn get_current_object_icon(inf_view: &crate::document::infview::InfView) -> *con
                     crate::document::objects::Function::Detector => {
                         return const_cstr!("\u{f715}").as_ptr();
                     },
+                    crate::document::objects::Function::TrackLabel { .. } => {},
                 }
             }
             const_cstr!("\u{f637}").as_ptr()
@@ -612,50 +613,68 @@ fn render_props_tab(document: &mut Document) {
         };
 
         // 객체 타입 확인
-        let (is_signal, is_switch, is_detector) = {
-            let mut is_signal = false;
-            let mut is_switch = false;
-            let mut is_detector = false;
-            
-            for function in &obj_data.functions {
-                match function {
-                    Function::Signal { .. } => is_signal = true,
-                    Function::Switch { .. } => is_switch = true,
-                    Function::Detector => is_detector = true,
-                }
-            }
-            (is_signal, is_switch, is_detector)
-        };
+                    let (is_signal, is_switch, is_detector, is_track) = {
+                let mut is_signal = false;
+                let mut is_switch = false;
+                let mut is_detector = false;
+                let mut is_track = false;
 
-        // 객체 타입 표시
-        let object_type = if is_signal { "Signal" } else if is_switch { "Switch" } else if is_detector { "Detector" } else { "Unknown" };
-        widgets::show_text(&format!("Object Type: {}", object_type));
+                for function in &obj_data.functions {
+                    match function {
+                        Function::Signal { .. } => is_signal = true,
+                        Function::Detector => is_detector = true,
+                        Function::Switch { .. } => is_switch = true,
+                        Function::TrackLabel { .. } => is_track = true,
+                    }
+                }
+                (is_signal, is_switch, is_detector, is_track)
+            };
+
+            // 객체 타입 표시
+            let object_type = if is_signal { "Signal" } else if is_switch { "Switch" } else if is_detector { "Detector" } else if is_track { "TrackLabel" } else { "Unknown" };
+            println!("=== Sidebar 속성 표시 ===");
+            println!("선택된 객체 타입: {}", object_type);
+            widgets::show_text(&format!("Object Type: {}", object_type));
 
         // ID 편집 기능
         widgets::show_text("ID:");
         igSameLine(0.0, 5.0);
         
-        let current_id = {
-            let mut id = String::new();
-            for function in &obj_data.functions {
-                match function {
-                    Function::Signal { id: signal_id, .. } => {
-                        if let Some(sid) = signal_id {
-                            id = sid.clone();
-                            break;
+                    let current_id = {
+                let mut id = String::new();
+                println!("=== ID 추출 시작 ===");
+                println!("객체의 functions 개수: {}", obj_data.functions.len());
+                
+                for (i, function) in obj_data.functions.iter().enumerate() {
+                    println!("  function[{}]: {:?}", i, function);
+                    
+                    match function {
+                        Function::Signal { id: signal_id, .. } => {
+                            println!("    Signal ID: {:?}", signal_id);
+                            if let Some(sid) = signal_id {
+                                id = sid.clone();
+                                println!("    -> Signal ID 설정: {}", id);
+                                break;
+                            }
+                        },
+                        Function::Switch { id: switch_id } => {
+                            if let Some(sid) = switch_id {
+                                id = sid.clone();
+                                break;
+                            }
+                        },
+                        Function::TrackLabel { id: track_id, display_text } => {
+                            if let Some(tid) = track_id {
+                                id = tid.clone();
+                                break;
+                            }
+                        },
+                        _ => {
                         }
-                    },
-                    Function::Switch { id: switch_id } => {
-                        if let Some(sid) = switch_id {
-                            id = sid.clone();
-                            break;
-                        }
-                    },
-                    _ => {}
+                    }
                 }
-            }
-            id
-        };
+                id
+            };
 
         // ID 입력 필드
         let mut id_buffer = current_id.clone().into_bytes();
@@ -684,6 +703,13 @@ fn render_props_tab(document: &mut Document) {
                             }
                         } else if is_switch {
                             if let Function::Switch { id: Some(id) } = function {
+                                if *id == new_id {
+                                    duplicate_found = true;
+                                    break;
+                                }
+                            }
+                        } else if is_track {
+                            if let Function::TrackLabel { id: Some(id), display_text: _ } = function {
                                 if *id == new_id {
                                     duplicate_found = true;
                                     break;
@@ -718,6 +744,10 @@ fn render_props_tab(document: &mut Document) {
                                 },
                                 Function::Switch { id: ref mut switch_id } => {
                                     *switch_id = Some(new_id.clone());
+                                },
+                                Function::TrackLabel { id: ref mut track_id, display_text: ref mut display } => {
+                                    *track_id = Some(new_id.clone());
+                                    *display = Some(new_id.clone());
                                 },
                                 _ => {}
                             }
@@ -890,7 +920,11 @@ fn render_props_tab(document: &mut Document) {
         igText(const_cstr!("Position Information").as_ptr());
         igSeparator();
         widgets::show_text(&format!("Position: ({:.1}, {:.1})", obj_data.loc.x, obj_data.loc.y));
-        widgets::show_text(&format!("Tangent: ({:.1}, {:.1})", obj_data.tangent.x, obj_data.tangent.y));
+        
+        // TrackLabel이 아닌 경우에만 tangent 정보 표시
+        if !is_track {
+            widgets::show_text(&format!("Tangent: ({:.1}, {:.1})", obj_data.tangent.x, obj_data.tangent.y));
+        }
         
         if let Some(angle) = obj_data.placed_angle {
             widgets::show_text(&format!("Placed Angle: {:.1}°", angle.to_degrees()));

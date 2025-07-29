@@ -85,7 +85,6 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
     let mut set_distant = None;
     for f in obj.functions.iter() {
         match f {
-            Function::Detector => { widgets::show_text("Detector"); },
             Function::Signal { has_distant, id: _ } => {
                 widgets::show_text("Signal");
                 let mut has_distant = *has_distant;
@@ -96,9 +95,11 @@ pub fn object_menu(analysis :&mut Analysis, pta :PtA) -> Option<()> {
                     }
                 }
             }
+            Function::Detector => { widgets::show_text("Detector"); },
             Function::Switch { id: _ } => {
                 widgets::show_text("Switch");
             }
+            Function::TrackLabel { .. } => {},
         }
     }
     if let Some(d) = set_distant {

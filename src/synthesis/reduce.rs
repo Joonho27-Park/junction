@@ -106,6 +106,7 @@ fn convert_signals(topo :&Topology, dgraph :&dgraph::DGraph,
                         id_map.insert(glm::vec2(id.x as _, 0) , glm::vec2(design.len() as _, 0));
                     }
                 },
+                Function::TrackLabel { .. } => {},
             }
         }
     }

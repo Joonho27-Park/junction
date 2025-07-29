@@ -131,6 +131,7 @@ impl DGraphBuilder {
                                 detector_ids.insert(a,id);
                                 detector_ids.insert(b,id);
                             },
+                            Function::TrackLabel { .. } => {},
                         }
                     }
                     last_pos = pos;

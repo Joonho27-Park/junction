@@ -5,6 +5,7 @@ use crate::document::view::*;
 use crate::document::objects::*;
 use crate::document::dispatch;
 use crate::gui::ImVec2;
+use crate::gui::infrastructure::IdDragState;
 
 
 #[derive(Debug)]
@@ -16,8 +17,9 @@ pub struct InfView {
     // 이름 입력 상태
     pub id_input: Option<IdInputState>,
     pub focused: bool, // 입력창/팝업 등 포커스가 필요한 UI가 떠 있을 때 true
-    // 처리된 스위치 노드 추적
     pub processed_switch_nodes: Option<Vec<Pt>>,
+    // TrackLabel 드래그 상태
+    pub track_label_drag: IdDragState,
 }
 
 #[derive(Debug)]
@@ -58,6 +60,7 @@ impl InfView {
             id_input: None,
             focused: false,
             processed_switch_nodes: None,
+            track_label_drag: IdDragState::new(),
         }
     }
 }

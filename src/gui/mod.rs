@@ -3,7 +3,7 @@ mod mainmenu;
 mod keys;
 pub mod windows;
 
-mod infrastructure;
+pub mod infrastructure;
 mod plan;
 mod diagram;
 mod dispatch;

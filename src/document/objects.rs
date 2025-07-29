@@ -42,6 +42,10 @@ pub enum Function {
     Signal { has_distant: bool, id: Option<String> },
     Detector,
     Switch { id: Option<String> },
+    TrackLabel { 
+        id: Option<String>,
+        display_text: Option<String>, // 화면에 표시할 텍스트
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +74,12 @@ pub enum SwitchType {
     Double,     // 쌍동
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Copy)]
+pub enum TrackSide {
+    Left,
+    Right,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
 pub enum ObjectState { 
@@ -83,6 +93,21 @@ pub enum ObjectState {
 
 pub const SIGNAL_OFFSET: f32 = 0.35;
 pub const SWITCH_OFFSET: f32 = 0.5;
+pub const TRACKLABEL_OFFSET: f32 = 0.5; // TrackLabel용 offset (줄임)
+
+impl Default for Object {
+    fn default() -> Self {
+        Self {
+            loc: glm::vec2(0.0, 0.0),
+            tangent: glm::vec2(1, 0), // i32로 수정
+            functions: Vec::new(),
+            id: None,
+            signal_props: None,
+            switch_props: None,
+            placed_angle: None,
+        }
+    }
+}
 
 impl Object {
     pub fn move_to(&mut self, model :&Model, analysis :&Analysis, pt :PtC) -> Option<()> {
@@ -224,6 +249,50 @@ impl Object {
                     self.loc = place_pos;
                     return None;
                 }
+            } else if self.functions.iter().find(|c| matches!(c, Function::TrackLabel { .. })).is_some() {
+                // TrackLabel 배치 시 바운더리 제한 로직
+                let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
+                    1.0 } else { -1.0 };
+                
+                // Track의 Y좌표를 기준으로 바운더리 계산 (위아래 1픽셀)
+                let track_y = pt_on_line.y;
+                let upper_bound = track_y + 1.0;  // 위쪽 1픽셀
+                let lower_bound = track_y - 1.0;  // 아래쪽 1픽셀
+                
+                // TrackLabel이 바운더리 안에 있으면 가장 가까운 바운더리로 이동
+                if pt.y >= lower_bound && pt.y <= upper_bound {
+                    // 바운더리 안에 있으면 가장 가까운 바운더리로 이동
+                    let distance_to_upper = upper_bound - pt.y;
+                    let distance_to_lower = pt.y - lower_bound;
+                    
+                    let text_height = 1.0; // 텍스트 높이 추정값
+                    
+                    let final_y = if distance_to_upper <= distance_to_lower {
+                        upper_bound + text_height  // 위쪽 바운더리보다 텍스트 높이만큼 더 위로
+                    } else {
+                        lower_bound  // 아래쪽 바운더리는 그대로
+                    };
+                    
+                    let final_pos = glm::vec2(pt.x, final_y);
+                    
+
+                    
+                    self.loc = final_pos;
+                    return Some(());
+                }
+                
+                // 바운더리 밖이면 그대로 배치
+                let place_pos = glm::vec2(pt.x, pt.y);
+                
+
+                
+                // TrackLabel은 Track 방향을 따라 배치
+                if factor > 0.0 {
+                    self.tangent *= -1;
+                }
+                
+                self.loc = place_pos;
+                return Some(());
             }
 
             return None;
@@ -233,7 +302,65 @@ impl Object {
         }
     }
 
-    pub fn draw(&self, pos :ImVec2, view :&View, draw_list :*mut ImDrawList, c :u32, state :&[ObjectState], config :&Config) {
+    pub fn move_to_with_factor(&mut self, model: &Model, analysis: &Analysis, pt: PtC) -> Option<f32> {
+        // TrackLabel 배치 시 바운더리 제한 로직
+        if self.functions.iter().find(|c| matches!(c, Function::TrackLabel { .. })).is_some() {
+            // 가장 가까운 track 찾기
+            if let Some(((track_start, track_end), _param, _)) = model.get_closest_lineseg(pt) {
+                let track_start_f = glm::vec2(track_start.x as f32, track_start.y as f32);
+                let track_end_f = glm::vec2(track_end.x as f32, track_end.y as f32);
+                let (pt_on_line, _) = project_to_line(pt, track_start_f, track_end_f);
+                let tangent = glm::normalize(&(track_end_f - track_start_f));
+                let normal = glm::vec2(-tangent.y, tangent.x);
+                let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
+                    1.0
+                } else {
+                    -1.0
+                };
+                
+                // Track의 Y좌표를 기준으로 바운더리 계산 (위아래 1픽셀)
+                let track_y = pt_on_line.y;
+                let upper_bound = track_y + 1.0;  // 위쪽 1픽셀
+                let lower_bound = track_y - 1.0;  // 아래쪽 1픽셀
+                
+                // TrackLabel이 바운더리 안에 있으면 가장 가까운 바운더리로 이동
+                if pt.y >= lower_bound && pt.y <= upper_bound {
+                    // 바운더리 안에 있으면 가장 가까운 바운더리로 이동
+                    let distance_to_upper = upper_bound - pt.y;
+                    let distance_to_lower = pt.y - lower_bound;
+                    
+                    let text_height = 1.0; // 텍스트 높이 추정값
+                    
+                    let final_y = if distance_to_upper <= distance_to_lower {
+                        upper_bound + text_height  // 위쪽 바운더리보다 텍스트 높이만큼 더 위로
+                    } else {
+                        lower_bound  // 아래쪽 바운더리는 그대로
+                    };
+                    
+                    let final_pos = glm::vec2(pt.x, final_y);
+                    
+
+                    
+                    self.loc = final_pos;
+                    return Some(factor);
+                }
+                
+                // 바운더리 밖이면 그대로 배치
+                let place_pos = glm::vec2(pt.x, pt.y);
+                
+
+                
+                if factor > 0.0 {
+                    self.tangent *= -1;
+                }
+                self.loc = place_pos;
+                return Some(factor);
+            }
+        }
+        None
+    }
+
+    pub fn draw(&self, pos :ImVec2, view :&View, draw_list :*mut ImDrawList, c :u32, state :&[ObjectState], config :&Config, inf_view :Option<&crate::document::infview::InfView>, model :&Model) {
         // 유틸: ImVec2 * f32
             fn mul_imvec2(v: ImVec2, f: f32) -> ImVec2 {
                 ImVec2 { x: v.x * f, y: v.y * f }
@@ -859,6 +986,74 @@ impl Object {
                             let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
                             ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
                         }
+                    },
+                    // ===== 트랙 ID 렌더링 =====
+                    Function::TrackLabel { id, display_text } => {
+                        if let Some(display_str) = display_text {
+                            let p = pos + view.world_ptc_to_screen(self.loc);
+                            let text_pos = ImVec2 { x: p.x, y: p.y + 0.0 };
+                            
+
+                            
+                            // 클릭 가능한 범위를 원으로 표시 (디버그용)
+                            let click_radius = 1.0; // find_id_at_position에서 사용하는 임계값과 동일 (1.5 -> 1.0)
+                            let circle_color = if let Some(inf_view) = inf_view {
+                                if inf_view.track_label_drag.id_clickable {
+                                    0x2000FF00  // 클릭 가능할 때: 반투명 초록색
+                                } else {
+                                    0x20FF0000  // 클릭 불가능할 때: 반투명 빨간색
+                                }
+                            } else {
+                                0x2000FF00  // 기본: 반투명 초록색
+                            };
+                            
+                            unsafe {
+                                // 클릭 가능한 범위를 원으로 표시
+                                ImDrawList_AddCircle(draw_list, p, click_radius, circle_color, 12, 2.0);
+                            }
+                            
+                            // Highlight dragged ID
+                            if let Some(inf_view) = inf_view {
+                                if inf_view.track_label_drag.is_dragging {
+                                    if let Some(dragged_id) = &inf_view.track_label_drag.dragged_id {
+                                        if *dragged_id == *display_str {
+                                            // Draw red background for dragged ID
+                                            let bg_pos = ImVec2 { x: text_pos.x - 2.0, y: text_pos.y - 2.0 };
+                                            let bg_size = ImVec2 { x: text_pos.x + 20.0, y: text_pos.y + 12.0 };
+                                            unsafe {
+                                                ImDrawList_AddRectFilled(draw_list, bg_pos, bg_size, 
+                                                    0x40FF0000, 0.0, 0);
+                                            }
+                                        }
+                                    }
+                                    // Draw drag preview
+                                    if let Some(preview_pos) = inf_view.track_label_drag.drag_preview_pos {
+                                        if let Some(dragged_id) = &inf_view.track_label_drag.dragged_id {
+                                            if *dragged_id == *display_str {
+                                                let preview_screen_pos = pos + view.world_ptc_to_screen(preview_pos);
+                                                let preview_text_pos = ImVec2 { x: preview_screen_pos.x, y: preview_screen_pos.y };
+                                                let preview_bg_pos = ImVec2 { x: preview_text_pos.x - 2.0, y: preview_text_pos.y - 2.0 };
+                                                let preview_bg_size = ImVec2 { x: preview_text_pos.x + 20.0, y: preview_text_pos.y + 12.0 };
+                                                unsafe {
+                                                    ImDrawList_AddRectFilled(draw_list, preview_bg_pos, preview_bg_size, 
+                                                        0x400000FF, 0.0, 0);
+                                                    let preview_text_ptr = std::ffi::CString::new(dragged_id.as_str()).unwrap();
+                                                    ImDrawList_AddText(draw_list, preview_text_pos, 
+                                                        0xFF000000, preview_text_ptr.as_ptr(), std::ptr::null());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Draw main text
+                            unsafe {
+                                let text_ptr = std::ffi::CString::new(display_str.as_str()).unwrap();
+                                ImDrawList_AddText(draw_list, text_pos, c, text_ptr.as_ptr(), std::ptr::null());
+                            }
+                        }
+                        // ID가 None인 경우 아무것도 표시하지 않음
                     }
                 }
             }
