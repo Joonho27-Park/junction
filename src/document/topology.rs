@@ -185,7 +185,7 @@ pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
                 println!("WARNING: object trackside position error.");
             }
         } else {
-            println!("WARNING: object outside track network.");
+            // println!("WARNING: object outside track network.");
         }
     }
 

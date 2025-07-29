@@ -1023,8 +1023,26 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
             // Check if current ID is duplicate (only within same function type)
             let is_duplicate = is_id_duplicate(analysis, &id_input.id, Some(id_input.position), &id_input.function_type);
 
-            if igBegin(const_cstr!("Signal ID").as_ptr(), &mut open as _, 0 as _) {
-                widgets::show_text("Enter signal ID:");
+            // 객체 타입에 따라 다이얼로그 제목과 메시지 결정
+            let message = match &id_input.function_type {
+                Function::Signal { .. } => "Enter signal ID:",
+                Function::Switch { .. } => "Enter switch ID:",
+                Function::TrackLabel { .. } => "Enter track ID:",
+                Function::Detector { .. } => "Enter track ID:",
+                _ => "Enter object ID:",
+            };
+
+            // 객체 타입에 따라 다이얼로그 제목 결정
+            let window_title = match &id_input.function_type {
+                Function::Signal { .. } => const_cstr!("Signal ID"),
+                Function::Switch { .. } => const_cstr!("Switch ID"),
+                Function::TrackLabel { .. } => const_cstr!("Track ID"),
+                Function::Detector { .. } => const_cstr!("Track ID"),
+                _ => const_cstr!("Object ID"),
+            };
+
+            if igBegin(window_title.as_ptr(), &mut open as _, 0 as _) {
+                widgets::show_text(message);
                 
                 // ID 입력 필드
                 let mut id_buffer = id_input.id.clone().into_bytes();
@@ -1135,7 +1153,7 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                         });
                     }
                 } else {
-                    // TrackLabel이 아닌 경우 기존 로직 사용
+                    // 그 외 객체는 기존 로직 사용
                     analysis.edit_model(|m| {
                         m.objects.insert(round_coord(position), object);
                         None

@@ -632,8 +632,8 @@ fn render_props_tab(document: &mut Document) {
 
             // 객체 타입 표시
             let object_type = if is_signal { "Signal" } else if is_switch { "Switch" } else if is_detector { "Detector" } else if is_track { "TrackLabel" } else { "Unknown" };
-            println!("=== Sidebar 속성 표시 ===");
-            println!("선택된 객체 타입: {}", object_type);
+            // println!("=== Sidebar 속성 표시 ===");
+            // println!("선택된 객체 타입: {}", object_type);
             widgets::show_text(&format!("Object Type: {}", object_type));
 
         // ID 편집 기능
@@ -642,18 +642,18 @@ fn render_props_tab(document: &mut Document) {
         
                     let current_id = {
                 let mut id = String::new();
-                println!("=== ID 추출 시작 ===");
-                println!("객체의 functions 개수: {}", obj_data.functions.len());
+                // println!("=== ID 추출 시작 ===");
+                // println!("객체의 functions 개수: {}", obj_data.functions.len());
                 
                 for (i, function) in obj_data.functions.iter().enumerate() {
-                    println!("  function[{}]: {:?}", i, function);
+                    // println!("  function[{}]: {:?}", i, function);
                     
                     match function {
                         Function::Signal { id: signal_id, .. } => {
-                            println!("    Signal ID: {:?}", signal_id);
+                            // println!("    Signal ID: {:?}", signal_id);
                             if let Some(sid) = signal_id {
                                 id = sid.clone();
-                                println!("    -> Signal ID 설정: {}", id);
+                                // println!("    -> Signal ID 설정: {}", id);
                                 break;
                             }
                         },
