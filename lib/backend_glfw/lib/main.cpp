@@ -242,7 +242,7 @@ if (FILE *file = fopen("lib/glrail/PretendardVariable.ttf", "r")) {
 
 // [1] 한글+영문 폰트(기본) - MergeMode 없이 등록 (한글/영문/숫자 모두 잘 나오게)
 ImFont* base_font = io.Fonts->AddFontFromFileTTF(
-    "lib/glrail/PretendardVariable.ttf", // 폰트 파일 경로
+    "./resources/fonts/PretendardVariable.ttf", // 폰트 파일 경로
     18.0f,                                // 글자 크기(픽셀)
     NULL,                                 // 폰트 설정(기본값)
     korean_ranges                         // 포함할 글자 범위
