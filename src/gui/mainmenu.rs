@@ -82,7 +82,7 @@ pub fn main_menu(app :&mut App) {
                 }
 
                 if igMenuItemBool(const_cstr!("Export to railML...").as_ptr(), std::ptr::null(), false, true) {
-                    // TODO 
+                    app.windows.export_window.open = true;
                 }
 
                 widgets::sep();

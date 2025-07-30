@@ -78,8 +78,30 @@ impl ImportWindow {
                     self.close();
                 }
             },
-            ImportState::Ping => { widgets::show_text("Running solver"); },
-            x => { widgets::show_text(&format!("{:?}", x)); },
+            ImportState::Ping => { 
+                widgets::show_text("Running solver...");
+                if igButton(const_cstr!("Cancel").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    self.close();
+                }
+            },
+            ImportState::SourceFileError(error) => {
+                widgets::show_text(&format!("Error: {}", error));
+                if igButton(const_cstr!("Close").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    self.close();
+                }
+            },
+            ImportState::PlotError(error) => {
+                widgets::show_text(&format!("Error: {}", error));
+                if igButton(const_cstr!("Close").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    self.close();
+                }
+            },
+            x => { 
+                widgets::show_text(&format!("{:?}", x));
+                if igButton(const_cstr!("Close").as_ptr(), ImVec2 { x: 80.0, y: 0.0 }) {
+                    self.close();
+                }
+            },
         }
 
         igEnd();
@@ -165,6 +187,15 @@ pub fn load_railml_file(filename :String, tx :mpsc::Sender<ImportState>)  {
 
     info!("Starting solver");
     info!("plot model {:#?}", plotmodel);
+    
+    // Solver 복잡도 분석을 위한 추가 정보
+    info!("Solver configuration:");
+    info!("  - Criteria count: {}", solver.criteria.len());
+    info!("  - Nodes distinct: {}", solver.nodes_distinct);
+    info!("  - Plot model nodes: {}", plotmodel.nodes.len());
+    info!("  - Plot model edges: {}", plotmodel.edges.len());
+    
+    let start_time = std::time::Instant::now();
     let plot = match solver.solve(plotmodel) {
         Ok(m) => m,
         Err(e) => {
@@ -172,6 +203,9 @@ pub fn load_railml_file(filename :String, tx :mpsc::Sender<ImportState>)  {
             return;
         },
     };
+    let solver_duration = start_time.elapsed();
+    info!("Solver completed in {:?}", solver_duration);
+    
     if tx.send(ImportState::Ping).is_err() { return; }
 
     info!("Found model");
@@ -296,7 +330,13 @@ pub fn convert_railplot(topo :railmlio::topo::Topological)
             }
 
             for (node_idx,node_type) in topo.nodes.iter().enumerate() {
-                let (dir,km0) = km0[&node_idx];
+                let (dir,km0) = match km0.get(&node_idx) {
+                    Some(val) => *val,
+                    None => {
+                        warn!("Node {} not found in km0, skipping", node_idx);
+                        continue;
+                    }
+                };
 
                 if let topo::TopoNode::Continuation = node_type { continue; }
 
@@ -354,8 +394,14 @@ pub fn convert_railplot(topo :railmlio::topo::Topological)
                 }
 
                 // swap to order pos
-                if model.nodes[na.0].pos > model.nodes[nb.0].pos {
-                    std::mem::swap(&mut na, &mut nb);
+                if na.0 < model.nodes.len() && nb.0 < model.nodes.len() {
+                    if model.nodes[na.0].pos > model.nodes[nb.0].pos {
+                        std::mem::swap(&mut na, &mut nb);
+                    }
+                } else {
+                    warn!("Node indices out of bounds: na.0={}, nb.0={}, model.nodes.len()={}", 
+                          na.0, nb.0, model.nodes.len());
+                    continue;
                 }
 
 

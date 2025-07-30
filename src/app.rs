@@ -4,6 +4,7 @@ use crate::gui::windows::logview::LogStore;
 use crate::gui::windows::sidebar::SidebarWindow;
 use crate::gui::windows::dispatch_window::DispatchWindow;
 use crate::import;
+use crate::export;
 use crate::gui;
 
 pub struct App {
@@ -40,6 +41,7 @@ pub struct Windows {
     pub sidebar_split: Option<f32>,
     pub diagram_split :Option<f32>,
     pub import_window :import::ImportWindow,
+    pub export_window :export::ExportWindow,
     pub synthesis_window :Option<gui::windows::synthesis::SynthesisWindow>,
 }
 
@@ -57,7 +59,8 @@ impl Windows {
 
             diagram_split: None,
 
-            import_window: import::ImportWindow::new(bg),
+            import_window: import::ImportWindow::new(bg.clone()),
+            export_window: export::ExportWindow::new(bg),
             synthesis_window: None,
         }
     }
