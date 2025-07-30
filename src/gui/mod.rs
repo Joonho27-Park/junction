@@ -113,6 +113,7 @@ pub fn main(app :&mut App) -> bool {
     }
 
     app.windows.import_window.draw(&mut app.document.analysis);
+    app.windows.export_window.draw(&app.document.analysis.model());
     if let Some(win) = &mut app.windows.synthesis_window { if !win.draw(&mut app.document.analysis) {
         app.windows.synthesis_window = None; }}
 

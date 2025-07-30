@@ -5,6 +5,7 @@ mod file;
 mod gui;
 mod util;
 mod import;
+mod export;
 
 mod synthesis;
 
@@ -53,6 +54,7 @@ fn main() {
         // Check background threads for updates
         app.document.check();
         app.windows.import_window.update();
+        app.windows.export_window.update();
         if let Some(win) = &mut app.windows.synthesis_window { win.check(); }
 
         // Advance time in animations
