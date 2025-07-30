@@ -505,8 +505,8 @@ impl Object {
                                   let screen_offset = ImVec2 { x: x_offset, y: y_offset };
                                   let text_pos = p + screen_offset;
 
-                                  // 텍스트 색상: 검은색 (CanvasText)
-                                  let text_color = config.color_u32(RailUIColorName::CanvasText);
+                                  // 텍스트 색상: 신호기 색상과 동일
+                                  let text_color = c;
 
                                   // CString으로 변환 (ImGui 텍스트 렌더링용)
                                   let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
@@ -845,17 +845,17 @@ impl Object {
 
                                     // Y축 오프셋: 신호기 방향과 관계없이 동일
                                     let y_offset = if adjusted_tangent.x < 0.0 {
-                                        -7.5 // 왼쪽을 향할 때 y offset -7.5
+                                        -7.5 // 왼쪽을 향할 때 y offset -7.0
                                     } else {
-                                        -7.5 // 오른쪽을 향할 때 y offset -7.5
+                                        -7.5 // 오른쪽을 향할 때 y offset -7.0
                                     };
 
                                     // 최종 텍스트 위치 계산
                                     let screen_offset = ImVec2 { x: x_offset, y: y_offset };
                                     let text_pos = p + screen_offset;
 
-                                    // 텍스트 색상: 검은색 (CanvasText)
-                                    let text_color = config.color_u32(RailUIColorName::CanvasText);
+                                    // 텍스트 색상: 신호기 색상과 동일
+                                    let text_color = c;
 
                                     // CString으로 변환 (ImGui 텍스트 렌더링용)
                                     let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
@@ -982,7 +982,7 @@ impl Object {
                                 (if n.y > 0.0 { stem_tr } else { stem_bl }) + offset_vec
                             };
 
-                            let text_color = config.color_u32(RailUIColorName::CanvasText);
+                            let text_color = c;
                             let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
                             ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
                         }

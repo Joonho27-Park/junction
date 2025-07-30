@@ -38,7 +38,6 @@ pub enum Action {
     InsertObject(Option<Object>),
 }
 
-
 #[derive(Debug,Copy,Clone)]
 pub enum NormalState {
     Default,

@@ -1121,9 +1121,21 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                         id: Some(id.clone())
                     };
                     object.functions = vec![new_function];
+                    
+                    // Signal 객체를 모델에 추가
+                    analysis.edit_model(|m| {
+                        m.objects.insert(round_coord(position), object);
+                        None
+                    });
                 } else if let Some(Function::Switch { .. }) = object.functions.first() {
                     let new_function = Function::Switch { id: Some(id.clone()) };
                     object.functions = vec![new_function];
+                    
+                    // Switch 객체를 모델에 추가
+                    analysis.edit_model(|m| {
+                        m.objects.insert(round_coord(position), object);
+                        None
+                    });
                 } else if let Some(Function::TrackLabel { .. }) = object.functions.first() {
                     // TrackLabel은 단순한 표시 객체로 생성
                     let new_function = Function::TrackLabel { 
