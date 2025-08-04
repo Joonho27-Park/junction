@@ -900,6 +900,37 @@ fn render_props_tab(document: &mut Document) {
                     });
                 }
 
+                // Direction 편집
+                widgets::show_text("Direction:");
+                igSameLine(0.0, 5.0);
+                let mut direction = props.direction.clone();
+                let direction_str = match direction {
+                    SwitchDirection::Left => "Left",
+                    SwitchDirection::Right => "Right",
+                };
+                let direction_cstr = std::ffi::CString::new(direction_str).unwrap();
+                if igBeginCombo(const_cstr!("##switch_direction").as_ptr(), direction_cstr.as_ptr(), 0) {
+                    if igSelectable(const_cstr!("Left").as_ptr(), matches!(direction, SwitchDirection::Left), 0 as _, ImVec2::zero()) {
+                        direction = SwitchDirection::Left;
+                    }
+                    if igSelectable(const_cstr!("Right").as_ptr(), matches!(direction, SwitchDirection::Right), 0 as _, ImVec2::zero()) {
+                        direction = SwitchDirection::Right;
+                    }
+                    igEndCombo();
+                }
+
+                // Direction 변경사항 적용
+                if direction != props.direction {
+                    document.analysis.edit_model(|m| {
+                        if let Some(obj) = m.objects.get_mut(&pta) {
+                            if let Some(props) = &mut obj.switch_props {
+                                props.direction = direction;
+                            }
+                        }
+                        None
+                    });
+                }
+
             } else {
                 widgets::show_text("No switch properties set.");
                 if igButton(const_cstr!("Initialize Switch Properties").as_ptr(), ImVec2 { x: 0.0, y: 0.0 }) {
@@ -907,6 +938,7 @@ fn render_props_tab(document: &mut Document) {
                         if let Some(obj) = m.objects.get_mut(&pta) {
                             obj.switch_props = Some(SwitchProperties {
                                 switch_type: SwitchType::Single,
+                                direction: SwitchDirection::Right, // 기본값으로 Right 설정
                             });
                         }
                         None

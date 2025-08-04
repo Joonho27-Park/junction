@@ -35,6 +35,7 @@ pub struct SignalProperties {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SwitchProperties {
     pub switch_type: SwitchType,
+    pub direction: SwitchDirection,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +75,12 @@ pub enum SwitchType {
     Double,     // 쌍동
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum SwitchDirection {
+    Left,
+    Right,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub enum TrackSide {
     Left,
@@ -92,7 +99,7 @@ pub enum ObjectState {
 }
 
 pub const SIGNAL_OFFSET: f32 = 0.35;
-pub const SWITCH_OFFSET: f32 = 0.5;
+pub const SWITCH_OFFSET: f32 = 0.75;
 pub const TRACKLABEL_OFFSET: f32 = 0.5; // TrackLabel용 offset (줄임)
 
 impl Default for Object {
@@ -202,7 +209,7 @@ impl Object {
                 // 자동 설치 방식과 동일한 오프셋 계산
                 let normal_len = glm::length(&normal);
                 let normalized_normal = if normal_len > 0.0 { normal / normal_len } else { normal };
-                let offset = 0.5 * normalized_normal * factor;
+                let offset = SWITCH_OFFSET * normalized_normal * factor;
                 
                 let place_pos = glm::vec2(
                     (pt_on_line.x * 2.0).round() / 2.0,
@@ -228,6 +235,12 @@ impl Object {
                 // 스위치 노드가 있는 위치에서만 배치 가능
                 if found {
                     self.loc = place_pos;
+                    
+                    // 스위치 배치 시 factor에 따라 tangent 조정 (신호기와 동일한 로직)
+                    if factor > 0.0 {
+                        self.tangent *= -1;
+                    }
+                    
                     // 스위치가 성공적으로 배치될 때만 기울기 출력 및 각도 저장
                     let tangent_angle = (self.tangent.y as f32).atan2(self.tangent.x as f32);
                     let angle_degrees = tangent_angle * 180.0 / std::f32::consts::PI;
@@ -909,17 +922,14 @@ impl Object {
                             ImVec2 { x: 1.0, y: 0.0 }
                         };
                         
-                        // 스위치의 placed_angle을 사용해서 동그라미 위치 결정
-                        let stem_center = if let Some(angle) = self.placed_angle {
-                            if angle >= 90.0 && angle <= 270.0 {
-                                // 90도~270도: 동그라미가 왼쪽에
-                                circle_center - mul_imvec2(tangent_unit, circle_offset)
-                            } else {
-                                // 0도~90도 또는 270도~360도: 동그라미가 오른쪽에
-                                circle_center + mul_imvec2(tangent_unit, circle_offset)
+                        // 스위치의 direction에 따라 동그라미 위치 결정
+                        let stem_center = if let Some(switch_props) = &self.switch_props {
+                            match switch_props.direction {
+                                SwitchDirection::Left => circle_center - mul_imvec2(tangent_unit, circle_offset),
+                                SwitchDirection::Right => circle_center + mul_imvec2(tangent_unit, circle_offset),
                             }
                         } else {
-                            // placed_angle이 없으면 기본값 (오른쪽)
+                            // switch_props가 없으면 기본값 (오른쪽)
                             circle_center + mul_imvec2(tangent_unit, circle_offset)
                         };
 
@@ -945,10 +955,13 @@ impl Object {
                         if let Function::Switch { id: Some(id) } = f {
                             // 기울기에 따른 offset 조정
                             let x_offset = if angle_degrees <= -40.0 && angle_degrees >= -50.0 {
-                                -23.0  // -45도 근처일 때
+                                -28.0  // -45도 근처일 때
                             } else if angle_degrees <= -130.0 && angle_degrees >= -140.0 {
                                 -46.0  // -45도 근처일 때
-                            } else {
+                            } else if angle_degrees <= 140.0 && angle_degrees >= 130.0 {
+                                10.0
+                            }
+                            else {
                                 3.5   // 기본값 (0도, 180도, 45도, -135도 등)
                             };
 
@@ -966,18 +979,23 @@ impl Object {
 
                             // 기울기에 따라 꼭지점 선택
                             let text_pos = if angle_degrees >= 130.0 && angle_degrees <= 140.0 {
+                                println!("135도 근처: stem_tr");
                                 // 135도 근처: stem_tr
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -50.0 && angle_degrees <= -40.0 {
+                                println!("-45도 근처: stem_tr");
                                 // -45도 근처: stem_bl
                                 stem_tl + offset_vec
                             } else if angle_degrees >= 40.0 && angle_degrees <= 50.0 {
+                                println!("45도 근처: stem_tr");
                                 // 45도 근처: stem_br
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -140.0 && angle_degrees <= -130.0 {
+                                println!("-135도 근처: stem_tr");
                                 // -135도 근처: stem_tl
                                 stem_tl + offset_vec
                             } else {
+                                println!("0도 근처: stem_tr or stem_bl");
                                 // 그 외의 경우 (0도, 180도 등): 기존 로직 (n.y에 따라 stem_tr 또는 stem_bl)
                                 (if n.y > 0.0 { stem_tr } else { stem_bl }) + offset_vec
                             };

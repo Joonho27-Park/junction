@@ -58,6 +58,7 @@ fn create_switch_object_for_node(analysis: &mut Analysis, node_pt: Pt, vc: Vc, s
             signal_props: None,
             switch_props: Some(SwitchProperties {
                 switch_type: SwitchType::Single, // 기본값으로 Single 설정
+                direction: SwitchDirection::Right, // 기본값으로 Right 설정
             }),
             placed_angle: Some(angle_degrees),
         };
@@ -713,6 +714,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         signal_props: None,
                         switch_props: Some(SwitchProperties {
                             switch_type: SwitchType::Single,
+                            direction: SwitchDirection::Right, // 기본값으로 Right 설정
                         }),
                         placed_angle: None,
                     }
@@ -1130,6 +1132,14 @@ fn draw_id_input_dialog(analysis :&mut Analysis, inf_view :&mut InfView) {
                 } else if let Some(Function::Switch { .. }) = object.functions.first() {
                     let new_function = Function::Switch { id: Some(id.clone()) };
                     object.functions = vec![new_function];
+                    
+                    // switch_props가 없으면 기본값으로 설정
+                    if object.switch_props.is_none() {
+                        object.switch_props = Some(SwitchProperties {
+                            switch_type: SwitchType::Single,
+                            direction: SwitchDirection::Right,
+                        });
+                    }
                     
                     // Switch 객체를 모델에 추가
                     analysis.edit_model(|m| {
