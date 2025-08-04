@@ -105,6 +105,7 @@ impl SwitchConnectionCourse {
         }
     }
 
+    // model.rs에서 topo.rs로 변환하는 메서드
     pub fn to_side(&self) -> Option<Side> {
         // SwitchConnectionCourse -> Side 변환
         match self {
@@ -128,13 +129,13 @@ pub enum ConnectionOrientation {
 #[derive(Debug)]
 pub struct SwitchConnection {
     // <connection> 속성 정의
-    pub id :Id,                                  // <switchConnection> @id
-    pub r#ref :IdRef,                            // <switchConnection> @ref
-    pub orientation :ConnectionOrientation,      // <switchConnection> @orientation
-    pub course :Option<SwitchConnectionCourse>,  // <switchConnection> @course
-    pub radius :Option<f64>,                     // <switchConnection> @radius
-    pub max_speed :Option<f64>,                  // <switchConnection> @maxSpeed
-    pub passable :Option<bool>,                  // <switchConnection> @passable
+    pub id :Id,                                  // <connection> @id
+    pub r#ref :IdRef,                            // <connection> @ref
+    pub orientation :ConnectionOrientation,      // <connection> @orientation
+    pub course :Option<SwitchConnectionCourse>,  // <connection> @course
+    pub radius :Option<f64>,                     // <connection> @radius
+    pub max_speed :Option<f64>,                  // <connection> @maxSpeed
+    pub passable :Option<bool>,                  // <connection> @passable
 }
 
 #[derive(Debug)]
