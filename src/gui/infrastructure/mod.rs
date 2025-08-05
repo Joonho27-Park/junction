@@ -61,6 +61,7 @@ fn create_switch_object_for_node(analysis: &mut Analysis, node_pt: Pt, vc: Vc, s
                 direction: SwitchDirection::Right, // 기본값으로 Right 설정
             }),
             placed_angle: Some(angle_degrees),
+            placed_factor: None,
         };
         
         // ID 입력 다이얼로그 표시 (insert_object와 동일한 방식)
@@ -644,6 +645,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
                 inf_view.focused = false;
@@ -663,6 +665,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
                 inf_view.focused = false;
@@ -682,6 +685,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
                 inf_view.focused = false;
@@ -698,6 +702,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                         signal_props: None,
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
                 inf_view.focused = false;
@@ -717,6 +722,7 @@ fn inf_toolbar(analysis :&mut Analysis, inf_view :&mut InfView) {
                             direction: SwitchDirection::Right, // 기본값으로 Right 설정
                         }),
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
                 inf_view.focused = false;
@@ -1216,6 +1222,7 @@ fn create_track_with_id_input(analysis: &mut Analysis, inf_view: &mut InfView, t
         signal_props: None,
         switch_props: None,
         placed_angle: None,
+        placed_factor: None,
     };
     inf_view.id_input = Some(IdInputState {
         object,

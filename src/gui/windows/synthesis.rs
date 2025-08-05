@@ -50,6 +50,7 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
             signal_props: None,
             switch_props: None,
             placed_angle: None,
+            placed_factor: None,
         };
         obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
         //println!("ADding object {:?}", obj);
@@ -99,6 +100,7 @@ fn add_objects(analysis :&mut Analysis, objs :&Design) {
                 signal_props: None,
                 switch_props: None,
                 placed_angle: None,
+                placed_factor: None,
             };
             obj.move_to(&model, analysis, pt + sideways*glm::vec2(normal.x as f32, normal.y as f32));
             //println!("ADding object {:?}", obj);

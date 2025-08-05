@@ -95,6 +95,7 @@ pub fn keys(app :&mut App) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -112,6 +113,7 @@ pub fn keys(app :&mut App) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -129,6 +131,7 @@ pub fn keys(app :&mut App) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -142,6 +145,7 @@ pub fn keys(app :&mut App) {
                         signal_props: None,
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -155,6 +159,7 @@ pub fn keys(app :&mut App) {
                         signal_props: None,
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }

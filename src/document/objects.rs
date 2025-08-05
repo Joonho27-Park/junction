@@ -23,6 +23,8 @@ pub struct Object {
     pub switch_props: Option<SwitchProperties>,
     // 스위치가 배치될 때의 각도를 저장
     pub placed_angle: Option<f32>,
+    // 신호기가 배치될 때의 factor를 저장 (ABOVE/BELOW 판단용)
+    pub placed_factor: Option<f32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -112,20 +114,21 @@ impl Default for Object {
             signal_props: None,
             switch_props: None,
             placed_angle: None,
+            placed_factor: None,
         }
     }
 }
 
 impl Object {
     pub fn move_to(&mut self, model :&Model, analysis :&Analysis, pt :PtC) -> Option<()> {
-        if let Some((l,_param,(d1,d2))) = model.get_closest_lineseg(pt) {
+        if let Some((l,_param,(_d1,_d2))) = model.get_closest_lineseg(pt) {
             let (pt_on_line,_param) = project_to_line(pt, glm::vec2(l.0.x as _ ,l.0.y as _ ),
                                                  glm::vec2(l.1.x as _ ,l.1.y as _ ));
             let tangent : PtC = glm::vec2(l.1.x as f32 -l.0.x as f32 ,l.1.y as f32 -l.0.y as f32);
             let normal : PtC   = glm::vec2(-tangent.y,tangent.x);
             self.tangent = glm::vec2(tangent.x.round() as _, tangent.y.round() as _);
 
-            if self.functions.iter().find(|c| matches!(c, Function::Signal { has_distant, id: _ })).is_some() {
+            if self.functions.iter().find(|c| matches!(c, Function::Signal { has_distant: _, id: _ })).is_some() {
                     let factor = if glm::angle(&(pt_on_line - pt), &normal) > glm::half_pi() {
                         1.0 } else { -1.0 };
                     // 신호기-트랙(선로) 사이 offset 적용 (여기서 값 조정)
@@ -174,12 +177,25 @@ impl Object {
                         angle_degrees
                     };
 
-                    // 디버깅: tangent 벡터와 각도 정보 출력
-                    println!("Signal placed - Tangent: ({}, {}), Angle: {:.1}°, Factor: {}", 
-                             self.tangent.x, self.tangent.y, normalized_angle, factor);
+                    // 디버깅: signal 배치 정보 상세 출력
+                    println!("=== SIGNAL PLACED ===");
+                    println!("Location: ({:.2}, {:.2})", self.loc.x, self.loc.y);
+                    println!("Tangent: ({}, {})", self.tangent.x, self.tangent.y);
+                    println!("Angle: {:.1}°", normalized_angle);
+                    println!("Factor: {}", factor);
+                    println!("Track Position: {}", if factor > 0.0 { "ABOVE" } else { "BELOW" });
+                    if let Some(signal_props) = &self.signal_props {
+                        println!("Signal Type: {:?}", signal_props.signal_type);
+                        println!("Signal Kind: {:?}", signal_props.signal_kind);
+                        println!("Direction: {:?}", signal_props.direction);
+                    }
+                    println!("===================");
 
                     // 이 신호기의 각도를 저장
                     self.placed_angle = Some(normalized_angle);
+                    
+                    // factor를 저장 (ABOVE/BELOW 판단용)
+                    self.placed_factor = Some(factor);
 
                     // 각도에 따라 TrackDirection 설정 (시각적 표현과 일치하도록)
                     if let Some(signal_props) = &mut self.signal_props {
@@ -315,7 +331,7 @@ impl Object {
         }
     }
 
-    pub fn move_to_with_factor(&mut self, model: &Model, analysis: &Analysis, pt: PtC) -> Option<f32> {
+    pub fn move_to_with_factor(&mut self, model: &Model, _analysis: &Analysis, pt: PtC) -> Option<f32> {
         // TrackLabel 배치 시 바운더리 제한 로직
         if self.functions.iter().find(|c| matches!(c, Function::TrackLabel { .. })).is_some() {
             // 가장 가까운 track 찾기
@@ -355,6 +371,7 @@ impl Object {
 
                     
                     self.loc = final_pos;
+                    self.placed_factor = Some(factor);
                     return Some(factor);
                 }
                 
@@ -367,13 +384,14 @@ impl Object {
                     self.tangent *= -1;
                 }
                 self.loc = place_pos;
+                self.placed_factor = Some(factor);
                 return Some(factor);
             }
         }
         None
     }
 
-    pub fn draw(&self, pos :ImVec2, view :&View, draw_list :*mut ImDrawList, c :u32, state :&[ObjectState], config :&Config, inf_view :Option<&crate::document::infview::InfView>, model :&Model) {
+    pub fn draw(&self, pos :ImVec2, view :&View, draw_list :*mut ImDrawList, c :u32, state :&[ObjectState], config :&Config, inf_view :Option<&crate::document::infview::InfView>, _model :&Model) {
         // 유틸: ImVec2 * f32
             fn mul_imvec2(v: ImVec2, f: f32) -> ImVec2 {
                 ImVec2 { x: v.x * f, y: v.y * f }
@@ -382,11 +400,69 @@ impl Object {
         unsafe {
             let p = pos + view.world_ptc_to_screen(self.loc);
             let scale = 5.0;
-            // TODO can this be simplified?
-            let tangent = ImVec2 { x: scale * self.tangent.x as f32,
-                                   y: scale * -self.tangent.y as f32 };
-            let normal  = ImVec2 { x: scale * -self.tangent.y as f32,
-                                   y: scale * -self.tangent.x as f32 };
+            
+            // tangent 벡터 정규화하여 일정한 크기 유지
+            let raw_tangent = ImVec2 { x: self.tangent.x as f32, y: -self.tangent.y as f32 };
+            let tangent_len = (raw_tangent.x * raw_tangent.x + raw_tangent.y * raw_tangent.y).sqrt();
+            let tangent = if tangent_len > 0.0 {
+                ImVec2 { x: scale * raw_tangent.x / tangent_len, y: scale * raw_tangent.y / tangent_len }
+            } else {
+                ImVec2 { x: scale, y: 0.0 } // 기본값
+            };
+            
+            // normal 벡터도 정규화
+            let raw_normal = ImVec2 { x: -self.tangent.y as f32, y: -self.tangent.x as f32 };
+            let normal_len = (raw_normal.x * raw_normal.x + raw_normal.y * raw_normal.y).sqrt();
+            let normal = if normal_len > 0.0 {
+                ImVec2 { x: scale * raw_normal.x / normal_len, y: scale * raw_normal.y / normal_len }
+            } else {
+                ImVec2 { x: 0.0, y: scale } // 기본값
+            };
+
+            // 신호기 ID 텍스트 렌더링 공통 함수
+            let render_signal_id = |draw_list: *mut ImDrawList, p: ImVec2, original_tangent: ImVec2, id: &str, c: u32, factor: f32| {
+                let id_len = id.len() as f32;
+
+                // track 위치와 tangent 방향에 따른 x 오프셋 계산
+                // 원래 tangent 사용 (adjusted_tangent가 아닌)
+                let tangent_x = original_tangent.x / scale; // 정규화된 tangent를 원래 크기로 변환
+                let tangent_y = original_tangent.y / scale;
+                // factor로 track 위치 판단 (factor > 0.0이면 ABOVE)
+                let track_position = if factor > 0.0 { "ABOVE" } else { "BELOW" };
+                println!("above or below?? {}", track_position);
+                let x_offset = match (track_position, (tangent_x.round() as i32, tangent_y.round() as i32)) {
+                    ("ABOVE", (1, 1)) => 15.0,     // base의 왼쪽 -4픽셀 - (3.0 * 글자수)
+                    ("BELOW", (1, 1)) => - (12.0 * id_len),    // base의 오른쪽 +10픽셀
+                    ("ABOVE", (1, -1)) => - (12.0 * id_len),     // base의 오른쪽 +10픽셀
+                    ("BELOW", (1, -1)) => 15.0,     // base의 왼쪽 -4픽셀 - (3.0 * 글자수)
+                    _ => {
+                        // 평평한 경우 기존 로직 사용
+                        if original_tangent.x < 0.0 {
+                            0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
+                        } else {
+                            - 3.0 - id_len * 9.0 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
+                        }
+                    }
+                };
+
+                // Y축 오프셋: 신호기 방향과 관계없이 동일
+                let y_offset = -7.5;
+
+                // 최종 텍스트 위치 계산
+                let screen_offset = ImVec2 { x: x_offset, y: y_offset };
+                let text_pos = p + screen_offset;
+
+                // 텍스트 색상: 신호기 색상과 동일
+                let text_color = c;
+
+                // CString으로 변환 (ImGui 텍스트 렌더링용)
+                let text_ptr = std::ffi::CString::new(id).unwrap();
+
+                // 텍스트 렌더링
+                unsafe {
+                    ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
+                }
+            };
 
             for f in self.functions.iter() {
                 match f {
@@ -398,7 +474,7 @@ impl Object {
                         ImDrawList_AddLine(draw_list, p - normal, p + normal, c, 5.0);
                     },
                     // ===== 메인 신호기(MainSignal) 렌더링 =====
-                    Function::Signal { has_distant, id } => {
+                    Function::Signal { has_distant, id: _ } => {
                         // Determine rendering style by signal_props.signal_type
                         let style = self.signal_props.as_ref().map(|props| props.signal_type.clone());
                         match style {
@@ -494,39 +570,11 @@ impl Object {
                                 // ===== 메인 신호기 ID 텍스트 렌더링 =====
                                 // 신호기 ID가 있으면 신호기 기둥 아래에 텍스트를 표시
                                 if let Function::Signal { id: Some(id), .. } = f {
-                                  // ===== 신호기 방향에 따른 텍스트 위치 조정 =====
-                                  // 신호기가 왼쪽을 향하는지 오른쪽을 향하는지에 따라 텍스트 위치가 달라짐
-                                  let id_len = id.len() as f32;
-
-                                  // X축 오프셋: 신호기 방향에 따라 다르게 적용
-                                  let x_offset = if adjusted_tangent.x < 0.0 {
-                                    // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
-                                    0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
-                                  } else {
-                                    // 신호기가 오른쪽을 향할 때: 텍스트를 왼쪽으로 배치
-                                    - 3.0 - id_len * 9.0 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
-                                  };
-
-                                  // Y축 오프셋: 신호기 방향과 관계없이 동일
-                                  let y_offset = if adjusted_tangent.x < 0.0 {
-                                     -7.5 // 왼쪽을 향할 때 y offset -7.5
-                                  } else {
-                                     -7.5 // 오른쪽을 향할 때 y offset -7.5
-                                  };
-
-                                  // 최종 텍스트 위치 계산
-                                  let screen_offset = ImVec2 { x: x_offset, y: y_offset };
-                                  let text_pos = p + screen_offset;
-
-                                  // 텍스트 색상: 신호기 색상과 동일
-                                  let text_color = c;
-
-                                  // CString으로 변환 (ImGui 텍스트 렌더링용)
-                                  let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
-
-                                  // 텍스트 렌더링
-                                  ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
-                            }
+                                    // 배치 시점에 저장된 factor 사용
+                                    let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
+                                    // 원래 tangent를 전달 (adjusted_tangent가 아닌)
+                                    render_signal_id(draw_list, p, tangent, id, c, factor);
+                                }
                             },
                             Some(SignalType::Shunting) => {
                                 // 기존 ShuntingSignal 렌더링 코드
@@ -843,38 +891,10 @@ impl Object {
                                 // ===== 입환신호기 ID 텍스트 렌더링 =====
                                 // 신호기 ID가 있으면 신호기 기둥 아래에 텍스트를 표시
                                 if let Function::Signal { id: Some(id), .. } = f {
-                                    // ===== 신호기 방향에 따른 텍스트 위치 조정 =====
-                                    // 신호기가 왼쪽을 향하는지 오른쪽을 향하는지에 따라 텍스트 위치가 달라짐
-                                    let id_len = id.len() as f32;
-
-                                    // X축 오프셋: 신호기 방향에 따라 다르게 적용
-                                    let x_offset = if adjusted_tangent.x < 0.0 {
-                                        // 신호기가 왼쪽을 향할 때: 텍스트를 오른쪽으로 배치
-                                        0.5 + id_len * 1.5 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
-                                    } else {
-                                        // 신호기가 오른쪽을 향할 때: 텍스트를 왼쪽으로 배치
-                                        - 3.0 - id_len * 9.0 // 기본 오프셋 + 텍스트 길이에 비례한 추가 오프셋
-                                    };
-
-                                    // Y축 오프셋: 신호기 방향과 관계없이 동일
-                                    let y_offset = if adjusted_tangent.x < 0.0 {
-                                        -7.5 // 왼쪽을 향할 때 y offset -7.0
-                                    } else {
-                                        -7.5 // 오른쪽을 향할 때 y offset -7.0
-                                    };
-
-                                    // 최종 텍스트 위치 계산
-                                    let screen_offset = ImVec2 { x: x_offset, y: y_offset };
-                                    let text_pos = p + screen_offset;
-
-                                    // 텍스트 색상: 신호기 색상과 동일
-                                    let text_color = c;
-
-                                    // CString으로 변환 (ImGui 텍스트 렌더링용)
-                                    let text_ptr = std::ffi::CString::new(id.as_str()).unwrap();
-
-                                    // 텍스트 렌더링
-                                    ImDrawList_AddText(draw_list, text_pos, text_color, text_ptr.as_ptr(), std::ptr::null());
+                                    // 배치 시점에 저장된 factor 사용
+                                    let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
+                                    // 원래 tangent를 전달 (adjusted_tangent가 아닌)
+                                    render_signal_id(draw_list, p, tangent, id, c, factor);
                                 }
                             },
                             None => {
@@ -886,11 +906,8 @@ impl Object {
                     // ===== 선로전환기(Switch) 렌더링 =====
                     // base(수평선)와 stem(기둥)을 직사각형으로 교체, 원(신호등)은 외곽선만 그림
                     Function::Switch { id: _ } => {
-                        let offset = -5.0; // normal 방향 offset
-
                         // 크기 설정
                         let stem_height = scale * 3.0;  // stem(세로 직사각형) 길이
-                        let stem = 1.0;
 
                         // 이 스위치가 배치될 때의 각도 사용 (저장되지 않았으면 기본값 0도)
                         let angle_degrees = self.placed_angle.unwrap_or(0.0);
@@ -1006,7 +1023,7 @@ impl Object {
                         }
                     },
                     // ===== 트랙 ID 렌더링 =====
-                    Function::TrackLabel { id, display_text } => {
+                    Function::TrackLabel { id: _, display_text } => {
                         if let Some(display_str) = display_text {
                             let p = pos + view.world_ptc_to_screen(self.loc);
                             let text_pos = ImVec2 { x: p.x, y: p.y + 0.0 };
@@ -1025,10 +1042,8 @@ impl Object {
                                 0x2000FF00  // 기본: 반투명 초록색
                             };
                             
-                            unsafe {
-                                // 클릭 가능한 범위를 원으로 표시
-                                ImDrawList_AddCircle(draw_list, p, click_radius, circle_color, 12, 2.0);
-                            }
+                            // 클릭 가능한 범위를 원으로 표시
+                            ImDrawList_AddCircle(draw_list, p, click_radius, circle_color, 12, 2.0);
                             
                             // Highlight dragged ID
                             if let Some(inf_view) = inf_view {
@@ -1038,10 +1053,8 @@ impl Object {
                                             // Draw red background for dragged ID
                                             let bg_pos = ImVec2 { x: text_pos.x - 2.0, y: text_pos.y - 2.0 };
                                             let bg_size = ImVec2 { x: text_pos.x + 20.0, y: text_pos.y + 12.0 };
-                                            unsafe {
-                                                ImDrawList_AddRectFilled(draw_list, bg_pos, bg_size, 
-                                                    0x40FF0000, 0.0, 0);
-                                            }
+                                            ImDrawList_AddRectFilled(draw_list, bg_pos, bg_size, 
+                                                0x40FF0000, 0.0, 0);
                                         }
                                     }
                                     // Draw drag preview
@@ -1052,13 +1065,11 @@ impl Object {
                                                 let preview_text_pos = ImVec2 { x: preview_screen_pos.x, y: preview_screen_pos.y };
                                                 let preview_bg_pos = ImVec2 { x: preview_text_pos.x - 2.0, y: preview_text_pos.y - 2.0 };
                                                 let preview_bg_size = ImVec2 { x: preview_text_pos.x + 20.0, y: preview_text_pos.y + 12.0 };
-                                                unsafe {
-                                                    ImDrawList_AddRectFilled(draw_list, preview_bg_pos, preview_bg_size, 
-                                                        0x400000FF, 0.0, 0);
-                                                    let preview_text_ptr = std::ffi::CString::new(dragged_id.as_str()).unwrap();
-                                                    ImDrawList_AddText(draw_list, preview_text_pos, 
-                                                        0xFF000000, preview_text_ptr.as_ptr(), std::ptr::null());
-                                                }
+                                                ImDrawList_AddRectFilled(draw_list, preview_bg_pos, preview_bg_size, 
+                                                    0x400000FF, 0.0, 0);
+                                                let preview_text_ptr = std::ffi::CString::new(dragged_id.as_str()).unwrap();
+                                                ImDrawList_AddText(draw_list, preview_text_pos, 
+                                                    0xFF000000, preview_text_ptr.as_ptr(), std::ptr::null());
                                             }
                                         }
                                     }
@@ -1066,10 +1077,8 @@ impl Object {
                             }
                             
                             // Draw main text
-                            unsafe {
-                                let text_ptr = std::ffi::CString::new(display_str.as_str()).unwrap();
-                                ImDrawList_AddText(draw_list, text_pos, c, text_ptr.as_ptr(), std::ptr::null());
-                            }
+                            let text_ptr = std::ffi::CString::new(display_str.as_str()).unwrap();
+                            ImDrawList_AddText(draw_list, text_pos, c, text_ptr.as_ptr(), std::ptr::null());
                         }
                         // ID가 None인 경우 아무것도 표시하지 않음
                     }

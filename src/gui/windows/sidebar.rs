@@ -408,6 +408,7 @@ fn render_tools_tab(document: &mut Document) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -427,6 +428,7 @@ fn render_tools_tab(document: &mut Document) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -446,6 +448,7 @@ fn render_tools_tab(document: &mut Document) {
                         }),
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -461,6 +464,7 @@ fn render_tools_tab(document: &mut Document) {
                         signal_props: None,
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
@@ -476,6 +480,7 @@ fn render_tools_tab(document: &mut Document) {
                         signal_props: None,
                         switch_props: None,
                         placed_angle: None,
+                        placed_factor: None,
                     }
                 ));
             }
