@@ -14,7 +14,7 @@ impl View {
         View {
             // 이 부분을 35에서 20로 바꾸어 점이 더 촘촘히 그려지게 함.
             scale: 20,
-            translation: ImVec2 { x: 0.0, y: 0.0 },
+            translation: ImVec2 { x: -600.0, y: 50.0 },
         }
     }
 
