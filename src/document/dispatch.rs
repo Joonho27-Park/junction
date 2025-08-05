@@ -453,11 +453,10 @@ pub fn draw_infrastructure(time :f64, history :&History, dgraph :&DGraph) -> Inf
                                 SwitchState::Diverging 
                             };
                             switch_states.insert(*pt, new_state);
-                            println!("  -> 스위치 노드 상태 저장: 위치 {:?}, 새 상태: {:?}", pt, new_state);
                         }
                     }
                 } else {
-                    println!("스위치 상태 변경 오류: 객체 ID {}에 해당하는 위치를 찾을 수 없음", sw_obj_id);
+                    // 스위치 상태 변경 오류: 객체 ID에 해당하는 위치를 찾을 수 없음
                 }
             },
             _ => {}, // TODO route

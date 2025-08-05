@@ -177,20 +177,6 @@ impl Object {
                         angle_degrees
                     };
 
-                    // 디버깅: signal 배치 정보 상세 출력
-                    println!("=== SIGNAL PLACED ===");
-                    println!("Location: ({:.2}, {:.2})", self.loc.x, self.loc.y);
-                    println!("Tangent: ({}, {})", self.tangent.x, self.tangent.y);
-                    println!("Angle: {:.1}°", normalized_angle);
-                    println!("Factor: {}", factor);
-                    println!("Track Position: {}", if factor > 0.0 { "ABOVE" } else { "BELOW" });
-                    if let Some(signal_props) = &self.signal_props {
-                        println!("Signal Type: {:?}", signal_props.signal_type);
-                        println!("Signal Kind: {:?}", signal_props.signal_kind);
-                        println!("Direction: {:?}", signal_props.direction);
-                    }
-                    println!("===================");
-
                     // 이 신호기의 각도를 저장
                     self.placed_angle = Some(normalized_angle);
                     
@@ -996,23 +982,18 @@ impl Object {
 
                             // 기울기에 따라 꼭지점 선택
                             let text_pos = if angle_degrees >= 130.0 && angle_degrees <= 140.0 {
-                                println!("135도 근처: stem_tr");
                                 // 135도 근처: stem_tr
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -50.0 && angle_degrees <= -40.0 {
-                                println!("-45도 근처: stem_tr");
                                 // -45도 근처: stem_bl
                                 stem_tl + offset_vec
                             } else if angle_degrees >= 40.0 && angle_degrees <= 50.0 {
-                                println!("45도 근처: stem_tr");
                                 // 45도 근처: stem_br
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -140.0 && angle_degrees <= -130.0 {
-                                println!("-135도 근처: stem_tr");
                                 // -135도 근처: stem_tl
                                 stem_tl + offset_vec
                             } else {
-                                println!("0도 근처: stem_tr or stem_bl");
                                 // 그 외의 경우 (0도, 180도 등): 기존 로직 (n.y에 따라 stem_tr 또는 stem_bl)
                                 (if n.y > 0.0 { stem_tr } else { stem_bl }) + offset_vec
                             };
