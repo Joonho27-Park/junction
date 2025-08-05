@@ -174,10 +174,6 @@ impl Object {
                         angle_degrees
                     };
 
-                    // 디버깅: tangent 벡터와 각도 정보 출력
-                    println!("Signal placed - Tangent: ({}, {}), Angle: {:.1}°, Factor: {}", 
-                             self.tangent.x, self.tangent.y, normalized_angle, factor);
-
                     // 이 신호기의 각도를 저장
                     self.placed_angle = Some(normalized_angle);
 
@@ -979,23 +975,18 @@ impl Object {
 
                             // 기울기에 따라 꼭지점 선택
                             let text_pos = if angle_degrees >= 130.0 && angle_degrees <= 140.0 {
-                                println!("135도 근처: stem_tr");
                                 // 135도 근처: stem_tr
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -50.0 && angle_degrees <= -40.0 {
-                                println!("-45도 근처: stem_tr");
                                 // -45도 근처: stem_bl
                                 stem_tl + offset_vec
                             } else if angle_degrees >= 40.0 && angle_degrees <= 50.0 {
-                                println!("45도 근처: stem_tr");
                                 // 45도 근처: stem_br
                                 stem_tl + offset_vec
                             } else if angle_degrees >= -140.0 && angle_degrees <= -130.0 {
-                                println!("-135도 근처: stem_tr");
                                 // -135도 근처: stem_tl
                                 stem_tl + offset_vec
                             } else {
-                                println!("0도 근처: stem_tr or stem_bl");
                                 // 그 외의 경우 (0도, 180도 등): 기존 로직 (n.y에 따라 stem_tr 또는 stem_bl)
                                 (if n.y > 0.0 { stem_tr } else { stem_bl }) + offset_vec
                             };
