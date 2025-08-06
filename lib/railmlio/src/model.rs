@@ -95,6 +95,16 @@ pub enum SwitchConnectionCourse {
     Right      // 우측 분기
 }
 
+impl std::fmt::Display for SwitchConnectionCourse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SwitchConnectionCourse::Straight => write!(f, "straight"),
+            SwitchConnectionCourse::Left => write!(f, "left"),
+            SwitchConnectionCourse::Right => write!(f, "right"),
+        }
+    }
+}
+
 impl SwitchConnectionCourse {
     pub fn opposite(&self) -> Option<SwitchConnectionCourse> {
         // 현재 분기 방향의 반대 방향 반환
@@ -124,6 +134,18 @@ pub enum ConnectionOrientation {
     RightAngled,  // 직각 연결
     Unknown,      // 방향 정보 없음
     Other         // 기타
+}
+
+impl std::fmt::Display for ConnectionOrientation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectionOrientation::Incoming => write!(f, "incoming"),
+            ConnectionOrientation::Outgoing => write!(f, "outgoing"),
+            ConnectionOrientation::RightAngled => write!(f, "rightAngled"),
+            ConnectionOrientation::Unknown => write!(f, "unknown"),
+            ConnectionOrientation::Other => write!(f, "other"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -181,6 +203,18 @@ pub enum SignalType {
     Combined,    // type="combined"
     Shunting     // type="shunting"
 }
+
+impl std::fmt::Display for SignalType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SignalType::Main => write!(f, "main"),
+            SignalType::Distant => write!(f, "distant"),
+            SignalType::Repeater => write!(f, "repeater"),
+            SignalType::Combined => write!(f, "combined"),
+            SignalType::Shunting => write!(f, "shunting"),
+        }
+    }
+}
 #[derive(Debug)]
 pub enum SignalFunction { 
     Exit,        // function="exit"
@@ -192,6 +226,15 @@ pub enum SignalFunction {
 pub enum TrackDirection { 
     Up,   // dir="up"
     Down  // dir="down"
+}
+
+impl std::fmt::Display for TrackDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TrackDirection::Up => write!(f, "up"),
+            TrackDirection::Down => write!(f, "down"),
+        }
+    }
 }
 #[derive(Debug)]
 pub struct Balise {

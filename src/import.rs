@@ -459,11 +459,19 @@ pub fn convert_junction(plot :railplotlib::model::SchematicOutput<()>) -> Result
     for (n,pt) in plot.nodes {
         let pt = round_pt_tol(pt)
             .map_err(|_| ImportState::PlotError(format!("Solution contains point not on grid, {:?}", pt)))?;
-        // use railplotlib::model::Shape;
-        //model.node_data.insert(pt,match n.shape {
-            //Shape::Begin | Shape::End =>
-        //});
-        // TODO
+        
+        use railplotlib::model::Shape;
+        let node_type = match n.shape {
+            Shape::Begin | Shape::End => crate::document::model::NDType::OpenEnd,
+            Shape::Switch(railplotlib::model::Side::Left, _) => 
+                crate::document::model::NDType::Sw(crate::document::model::Side::Left, crate::document::model::SwitchState::Straight),
+            Shape::Switch(railplotlib::model::Side::Right, _) => 
+                crate::document::model::NDType::Sw(crate::document::model::Side::Right, crate::document::model::SwitchState::Straight),
+            Shape::Continuation => crate::document::model::NDType::Cont,
+            Shape::Crossing => crate::document::model::NDType::Crossing(crate::document::model::CrossingType::Crossover),
+        };
+        model.node_data.insert(pt, node_type);
+        debug!("Added node at {:?} with type {:?}", pt, node_type);
     }
 
     for (e,pts) in plot.lines {

@@ -618,7 +618,7 @@ fn serialize_switch(switch: &Switch) -> Result<String, ExportError> {
                 xml.push_str(&format!(" length=\"{}\"", length));
             }
             if let Some(course) = track_continue_course {
-                xml.push_str(&format!(" trackContinueCourse=\"{:?}\"", course));
+                xml.push_str(&format!(" trackContinueCourse=\"{}\"", course));
             }
             if let Some(radius) = track_continue_radius {
                 xml.push_str(&format!(" trackContinueRadius=\"{}\"", radius));
@@ -628,9 +628,9 @@ fn serialize_switch(switch: &Switch) -> Result<String, ExportError> {
             // 2. connection 요소들 직렬화
             for connection in connections {
                 xml.push_str(&format!("              <connection id=\"{}\" ref=\"{}\"", connection.id, connection.r#ref));
-                xml.push_str(&format!(" orientation=\"{:?}\"", connection.orientation));
+                xml.push_str(&format!(" orientation=\"{}\"", connection.orientation));
                 if let Some(course) = &connection.course {
-                    xml.push_str(&format!(" course=\"{:?}\"", course));
+                    xml.push_str(&format!(" course=\"{}\"", course));
                 }
                 if let Some(radius) = connection.radius {
                     xml.push_str(&format!(" radius=\"{}\"", radius));
@@ -669,11 +669,11 @@ fn serialize_objects(objects: &Objects) -> Result<String, ExportError> {
             if let Some(name) = &signal.name {
                 xml.push_str(&format!(" name=\"{}\"", name));
             }
-            xml.push_str(&format!(" dir=\"{:?}\"", signal.dir));
+            xml.push_str(&format!(" dir=\"{}\"", signal.dir));
             if let Some(sight) = signal.sight {
                 xml.push_str(&format!(" sight=\"{}\"", sight));
             }
-            xml.push_str(&format!(" type=\"{:?}\"", signal.r#type));
+            xml.push_str(&format!(" type=\"{}\"", signal.r#type));
             xml.push_str(" />\n");
         }
         xml.push_str("          </signals>\n");
