@@ -188,7 +188,7 @@ fn analyze_switches(model: &Model) -> Vec<SwitchAnalysis> {
         if let NDType::Sw(side, state) = ndtype {
             println!("      Found switch at {:?} with side={:?}, state={:?}", pos, side, state);
             // 2. 해당 위치에 Function::Switch 객체가 있는지 확인
-            let object_info = find_switch_object_at_position(model, pos);
+            let mut object_info = find_switch_object_at_position(model, pos);
             if object_info.is_some() {
                 println!("        Found matching switch object");
             } else {
@@ -201,6 +201,24 @@ fn analyze_switches(model: &Model) -> Vec<SwitchAnalysis> {
                 node_state: *state,
                 object_info,
             });
+        }
+    }
+    
+    // 3. 스위치들을 위치 순으로 정렬하고 순차적으로 ID 할당
+    switches.sort_by(|a, b| {
+        a.position.x.cmp(&b.position.x).then(a.position.y.cmp(&b.position.y))
+    });
+    
+    for (index, switch) in switches.iter_mut().enumerate() {
+        // 객체 ID가 없으면 순차적으로 할당
+        if switch.object_info.is_none() || switch.object_info.as_ref().unwrap().id.is_none() {
+            let switch_id = format!("sw{}", index + 1);
+            switch.object_info = Some(SwitchObjectInfo {
+                id: Some(switch_id.clone()),
+                switch_type: None,
+                direction: None,
+            });
+            println!("        Assigned ID {} to switch at {:?}", switch_id, switch.position);
         }
     }
     
@@ -347,6 +365,25 @@ fn create_branch_tracks(analysis: &TrackAnalysis) -> Result<Vec<Track>, ExportEr
     
     // 스위치가 있는 경우 분기 트랙 생성
     if !analysis.switches.is_empty() {
+        // 실제 스위치 ID들을 수집 (이미 analyze_switches에서 할당됨)
+        let switch_ids: Vec<String> = analysis.switches.iter()
+            .map(|switch| {
+                switch.object_info.as_ref()
+                    .and_then(|obj| obj.id.as_ref())
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        // fallback: 위치 기반 ID
+                        format!("sw_{}_{}", switch.position.x, switch.position.y)
+                    })
+            })
+            .collect();
+        
+        // 첫 번째 스위치를 시작점, 마지막 스위치를 끝점으로 사용
+        let default_begin = "sw1".to_string();
+        let default_end = "sw2".to_string();
+        let begin_switch_id = switch_ids.first().unwrap_or(&default_begin);
+        let end_switch_id = switch_ids.last().unwrap_or(&default_end);
+        
         let branch_track = Track {
             id: "track2".to_string(),
             code: Some("SP2".to_string()),
@@ -355,12 +392,12 @@ fn create_branch_tracks(analysis: &TrackAnalysis) -> Result<Vec<Track>, ExportEr
             begin: Node {
                 id: "tb2".to_string(),
                 pos: Position { offset: 0.0, mileage: None },
-                connection: TrackEndConnection::Connection("tb2c".to_string(), "sw1c".to_string()),
+                connection: TrackEndConnection::Connection("tb2c".to_string(), format!("{}c", begin_switch_id)),
             },
             end: Node {
                 id: "te2".to_string(),
                 pos: Position { offset: 500.0, mileage: None },
-                connection: TrackEndConnection::Connection("te2c".to_string(), "sw2c".to_string()),
+                connection: TrackEndConnection::Connection("te2c".to_string(), format!("{}c", end_switch_id)),
             },
             switches: Vec::new(),
             objects: Objects::empty(),
@@ -372,28 +409,14 @@ fn create_branch_tracks(analysis: &TrackAnalysis) -> Result<Vec<Track>, ExportEr
 }
 
 fn convert_to_railml_switch(switch_analysis: &SwitchAnalysis, track_nodes: &[TrackNode]) -> Switch {
-    // 1. 스위치 ID 결정 (원본 파일 형식에 맞춤)
-    let switch_id = if let Some(obj_info) = &switch_analysis.object_info {
-        obj_info.id.clone().unwrap_or_else(|| {
-            // 위치 기반으로 sw1, sw2 형식 생성
-            if switch_analysis.position.x == 1 {
-                "sw1".to_string()
-            } else if switch_analysis.position.x == 4 {
-                "sw2".to_string()
-            } else {
-                format!("sw_{}_{}", switch_analysis.position.x, switch_analysis.position.y)
-            }
-        })
-    } else {
-        // 위치 기반으로 sw1, sw2 형식 생성
-        if switch_analysis.position.x == 1 {
-            "sw1".to_string()
-        } else if switch_analysis.position.x == 4 {
-            "sw2".to_string()
-        } else {
+    // 1. 스위치 ID 결정 (이미 analyze_switches에서 할당됨)
+    let switch_id = switch_analysis.object_info.as_ref()
+        .and_then(|obj| obj.id.as_ref())
+        .cloned()
+        .unwrap_or_else(|| {
+            // fallback: 위치 기반 ID
             format!("sw_{}_{}", switch_analysis.position.x, switch_analysis.position.y)
-        }
-    };
+        });
     
     // 2. 스위치 위치 계산
     let switch_pos = Position {
