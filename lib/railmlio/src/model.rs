@@ -165,12 +165,12 @@ impl Objects {
 
 #[derive(Debug)]
 pub struct Signal {
-    id: Id,                      // <signal> @id
-    pos: Position,               // <signal> @pos 위치 정보 (offset/mileage)
-    name: Option<String>,        // <signal> @name
-    dir: TrackDirection,         // <signal> @dir (Up/Down)
-    sight: Option<f64>,          // <signal> @sight
-    r#type: SignalType,          // <signal> @type (Main/Distant/...)
+    pub id: Id,                      // <signal> @id
+    pub pos: Position,               // <signal> @pos 위치 정보 (offset/mileage)
+    pub name: Option<String>,        // <signal> @name
+    pub dir: TrackDirection,         // <signal> @dir (Up/Down)
+    pub sight: Option<f64>,          // <signal> @sight
+    pub r#type: SignalType,          // <signal> @type (Main/Distant/...)
 }
 
 #[derive(Debug)]
