@@ -420,7 +420,7 @@ impl Object {
             };
 
             // 신호기 ID 텍스트 렌더링 공통 함수
-            let render_signal_id = |draw_list: *mut ImDrawList, p: ImVec2, original_tangent: ImVec2, id: &str, c: u32, factor: f32| {
+            let render_signal_id = |draw_list: *mut ImDrawList, p: ImVec2, original_tangent: ImVec2, id: &str, c: u32, factor: f32, scale: f32| {
                 let id_len = id.len() as f32;
 
                 // track 위치와 tangent 방향에 따른 x 오프셋 계산
@@ -572,8 +572,8 @@ impl Object {
                                 if let Function::Signal { id: Some(id), .. } = f {
                                     // 배치 시점에 저장된 factor 사용
                                     let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
-                                    // 원래 tangent를 전달 (adjusted_tangent가 아닌)
-                                    render_signal_id(draw_list, p, tangent, id, c, factor);
+                                    // 입환신호기와 달리, adjusted_tangent를 전달하여 direction에 따른 올바른 tangent 사용
+                                    render_signal_id(draw_list, p, adjusted_tangent, id, c, factor, scale);
                                 }
                             },
                             Some(SignalType::Shunting) => {
@@ -894,7 +894,7 @@ impl Object {
                                     // 배치 시점에 저장된 factor 사용
                                     let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
                                     // 원래 tangent를 전달 (adjusted_tangent가 아닌)
-                                    render_signal_id(draw_list, p, tangent, id, c, factor);
+                                    render_signal_id(draw_list, p, tangent, id, c, factor, scale);
                                 }
                             },
                             None => {
