@@ -572,7 +572,7 @@ impl Object {
                                 if let Function::Signal { id: Some(id), .. } = f {
                                     // 배치 시점에 저장된 factor 사용
                                     let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
-                                    // 입환신호기와 달리, adjusted_tangent를 전달하여 direction에 따른 올바른 tangent 사용
+                                    // adjusted_tangent 전달
                                     render_signal_id(draw_list, p, adjusted_tangent, id, c, factor, scale);
                                 }
                             },
@@ -893,8 +893,8 @@ impl Object {
                                 if let Function::Signal { id: Some(id), .. } = f {
                                     // 배치 시점에 저장된 factor 사용
                                     let factor = self.placed_factor.unwrap_or(if tangent.x < 0.0 { 1.0 } else { -1.0 });
-                                    // 원래 tangent를 전달 (adjusted_tangent가 아닌)
-                                    render_signal_id(draw_list, p, tangent, id, c, factor, scale);
+                                    // adjusted_tangent 전달
+                                    render_signal_id(draw_list, p, adjusted_tangent, id, c, factor, scale);
                                 }
                             },
                             None => {
