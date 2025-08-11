@@ -415,7 +415,7 @@ impl Object {
                 let tangent_y = original_tangent.y / scale;
                 // factor로 track 위치 판단 (factor > 0.0이면 ABOVE)
                 let track_position = if factor > 0.0 { "ABOVE" } else { "BELOW" };
-                println!("above or below?? {}", track_position);
+                //println!("above or below?? {}", track_position);
                 let x_offset = match (track_position, (tangent_x.round() as i32, tangent_y.round() as i32)) {
                     ("ABOVE", (1, 1)) => 15.0,     // base의 왼쪽 -4픽셀 - (3.0 * 글자수)
                     ("BELOW", (1, 1)) => - (12.0 * id_len),    // base의 오른쪽 +10픽셀
