@@ -645,13 +645,40 @@ impl Object {
                                     };
 
                                     // ===== 1/4 원의 중심(base) 위치 결정 =====
+                                    // 외곽선과 정확히 같은 위치에 그리기 위해 동일한 base 계산 사용
                                     let base = match s {
-                                                    ObjectState::DistantStop | ObjectState::DistantProceed =>
-                                                        // 원거리 신호: 기둥에서 1.5*adjusted_tangent + normal 방향으로 이동
-                                                        p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset),
-                                                    _ =>
-                                                        // 메인 신호: 기둥 끝에서 normal 방향으로 이동
-                                                        p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset),
+                                        ObjectState::DistantStop | ObjectState::DistantProceed => {
+                                            // 원거리 신호: 외곽선과 동일한 base 계산
+                                            if let Some(signal_props) = &self.signal_props {
+                                                let is_track_above = tangent.x < 0.0;
+                                                match (is_track_above, signal_props.direction) {
+                                                    (true, TrackDirection::Left) | (false, TrackDirection::Right) => {
+                                                        p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset)
+                                                    },
+                                                    (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                                        p + mul_imvec2(adjusted_tangent, 1.5) - mul_imvec2(n, offset)
+                                                    },
+                                                }
+                                            } else {
+                                                p + mul_imvec2(adjusted_tangent, 1.5) + mul_imvec2(n, offset)
+                                            }
+                                        },
+                                        _ => {
+                                            // 메인 신호: 외곽선과 동일한 base 계산
+                                            if let Some(signal_props) = &self.signal_props {
+                                                let is_track_above = tangent.x < 0.0;
+                                                match (is_track_above, signal_props.direction) {
+                                                    (true, TrackDirection::Left) | (false, TrackDirection::Right) => {
+                                                        p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset)
+                                                    },
+                                                    (true, TrackDirection::Right) | (false, TrackDirection::Left) => {
+                                                        p + mul_imvec2(adjusted_tangent, stem) - mul_imvec2(n, offset)
+                                                    },
+                                                }
+                                            } else {
+                                                p + mul_imvec2(adjusted_tangent, stem) + mul_imvec2(n, offset)
+                                            }
+                                        },
                                     };
 
                                     // ===== 1/4 원의 반지름(크기) 결정 =====
