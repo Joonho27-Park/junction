@@ -53,13 +53,16 @@ pub enum Function {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignalType {
-    Home,       // 장내
-    Departure,  // 출발
-    Shunting,   // 입환
+    // 괄호 안의 알파벳은 단축키
+    Home,       // 장내 (H)
+    Departure,  // 출발 (E)
+    Shunting,   // 입환 (U)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignalKind {
+    // 기능 및 UI가 변경되지 않으며, 구현만 해놓은 상태
+    // Object Properties 창의 Kind에서 변경가능
     Two,   // 2현시
     Three, // 3현시
     Four,  // 4현시
@@ -67,24 +70,31 @@ pub enum SignalKind {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub enum TrackDirection {
+    // 신호기 위,아래,왼쪽,아래쪽 선택시 시각적으로 보여줄 때 필요한 속성
     Left,
     Right,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SwitchType {
+    // Object Properties 창의 Type에서 변경가능
     Single,     // 단동
     Double,     // 쌍동
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum SwitchDirection {
+    // Object Properties 창의 Direction에서 변경가능
     Left,
     Right,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub enum TrackSide {
+    // plan.md 파일의 2. objects 설명 참고
+    // 아직 미구현
+    // 선로 주변 객체 (topo/dist 수정 방법)
+    // (선로를 따라 길이/위치/방향, 선로의 어느 쪽에 있는지를 기준으로 할당)
     Left,
     Right,
 }
@@ -92,10 +102,10 @@ pub enum TrackSide {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 //이곳에서 object의 속성 추가
 pub enum ObjectState { 
-    SignalStop, 
-    SignalProceed, 
-    DistantStop, 
-    DistantProceed,
+    SignalStop,      // 정지 신호: 빨간색
+    SignalProceed,   // 진행 신호: 초록색
+    DistantStop,     // 원거리 정지 신호: 빨간색 원
+    DistantProceed,  // 원거리 진행 신호: 초록색 원
     SwitchStraight,  // 스위치 직선 상태
     SwitchDiverging, // 스위치 분기 상태
 }
@@ -429,7 +439,7 @@ impl Object {
                 let tangent_y = original_tangent.y / scale;
                 // factor로 track 위치 판단 (factor > 0.0이면 ABOVE)
                 let track_position = if factor > 0.0 { "ABOVE" } else { "BELOW" };
-                println!("above or below?? {}", track_position);
+                // println!("above or below?? {}", track_position);
                 let x_offset = match (track_position, (tangent_x.round() as i32, tangent_y.round() as i32)) {
                     ("ABOVE", (1, 1)) => 15.0,     // base의 왼쪽 -4픽셀 - (3.0 * 글자수)
                     ("BELOW", (1, 1)) => - (12.0 * id_len),    // base의 오른쪽 +10픽셀
