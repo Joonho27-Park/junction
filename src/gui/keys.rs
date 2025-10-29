@@ -56,11 +56,12 @@ pub fn keys(app :&mut App) {
 
 
         if !igIsAnyItemActive() {
-            if (*io).KeyCtrl && igIsKeyPressed('A' as _, false) {
+            if (*io).KeyCtrl && igIsKeyPressed('A' as _, false) { // io.KeyCtrl: 컨트롤 키를 눌렀는가? 
+                //igIsKeyPressed: 특정 키를 눌렀는가? 즉 이 경우 Ctrl 키와 A키가 같이 눌렸는지 확인함
                 use std::collections::HashSet;
                 use crate::document::model::Ref;
-                let all_ids: HashSet<Ref> = app.document.analysis.model().objects.keys().map(|pt| Ref::Object(*pt)).collect();
-                app.document.inf_view.selection = all_ids;
+                let all_ids: HashSet<Ref> = app.document.analysis.model().objects.keys().map(|pt| Ref::Object(*pt)).collect(); //  맵 전체에 있는 객체들
+                app.document.inf_view.selection = all_ids; // 모든 객체들을 선택함
             } else if igIsKeyPressed('A' as _, false) {
                 app.document.inf_view.action = Action::Normal(NormalState::Default);
             }

@@ -230,19 +230,19 @@ pub struct ShortGenList<T> {
 pub struct ImShortGenList<T>(Arc<ShortGenList<T>>);
 
 pub fn generate_unique_dispatch_name(dispatches: &ImShortGenList<Dispatch>) -> String {
-        let mut used_numbers = std::collections::HashSet::new();
-        for (_id, d) in dispatches.iter() {
-            if let Some(stripped) = d.name.strip_prefix("Dispatch ") {
-                if let Ok(n) = stripped.parse::<usize>() {
-                    used_numbers.insert(n);
+        let mut used_numbers = std::collections::HashSet::new(); // dispatch 이름 생성에 이미 쓰인 숫자들 담음
+        for (_id, d) in dispatches.iter() { // 모든 dispatch들을 선회
+            if let Some(stripped) = d.name.strip_prefix("Dispatch ") { // 이름이 Dispatch로 시작되는지 확인
+                if let Ok(n) = stripped.parse::<usize>() { // Dispatch 이름 뒤에 숫자 파싱
+                    used_numbers.insert(n); // 파싱 성공하면 그 숫자 넣음
                 }
             }
         }
-        let mut n = 1;
+        let mut n = 1; // 시작 값을 1로 설정
         while used_numbers.contains(&n) {
-            n += 1;
+            n += 1; // Dispatch n에 n이 1부터 시작해서, 이미 쓰인 값이면 값을 더해나감
         }
-        format!("Dispatch {}", n)
+        format!("Dispatch {}", n) // 최종적인 숫자를 Dispatch n 형태로 만듦
 }
 pub fn generate_unique_plan_name(plans: &ImShortGenList<PlanSpec>) -> String {
     let mut used_numbers = std::collections::HashSet::new();
@@ -257,7 +257,7 @@ pub fn generate_unique_plan_name(plans: &ImShortGenList<PlanSpec>) -> String {
     while used_numbers.contains(&n) {
         n += 1;
     }
-    format!("Plan {}", n)
+    format!("Plan {}", n) //Plan도 Dispatch랑 같은 방법으로 만듦(generate_unique_dispatch_name과 방식 같음)
 }
 
 impl<T :Clone> ImShortGenList<T> {

@@ -44,8 +44,8 @@ pub fn diagram_view(config :&Config, inf_canvas :Option<&Draw>, inf_view :&InfVi
                     const_cstr!("diag").as_ptr());
         draw.begin_draw();
 
-        if graph.dispatch.commands.len() == 1 {
-            dv.viewport = Some(default_viewport(graph));
+        if graph.dispatch.commands.len() == 1 { // 첫 번째 명령이 추가될 때(명령 개수가 1개가 될 때)
+            dv.viewport = Some(default_viewport(graph)); // viewport를 기본값으로 하여 diagram이 즉시 보이도록 함
         } else if dv.viewport.is_none() {
             dv.viewport = Some(default_viewport(graph));
         }
@@ -144,10 +144,10 @@ pub fn diagram_toolbar(dv :&mut ManualDispatchView, graph :&DispatchOutput, is_d
         // Undock button in title bar when docked
         igSameLine(0.0,-1.0);
         if *is_docking {
-            let avail = igGetContentRegionAvail().x;
+            let avail = igGetContentRegionAvail().x; // 가로로 사용 가능한 공간 찾기
             if avail > 100.0 {
-                let cur = igGetCursorPos().x;
-                igSetCursorPosX(cur + avail - 100.0);
+                let cur = igGetCursorPos().x; // 100픽셀 이상 남아있으면 x 버튼을 그릴 위치를 지정함
+                igSetCursorPosX(cur + avail - 100.0); // 그릴 위치를 오른쪽 끝으로 이동시킴
             }
             if igButton(const_cstr!("Undock").as_ptr(), ImVec2::zero()) {
                 *is_docking = false;

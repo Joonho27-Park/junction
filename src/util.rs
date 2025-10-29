@@ -8,7 +8,7 @@ pub fn order<T: Ord>(a :T, b: T) -> (T,T) {
     if b < a { (b,a) } else { (a,b) }
 }
 
-pub fn clamp_pt(pt: Pt) -> Pt {
+pub fn clamp_pt(pt: Pt) -> Pt { //좌표를 받아서 x,y 좌표를 -10000~10000 사이의 범위로 제한함
     let clamp = |v: i32| v.max(-10_000).min(10_000);
     glm::vec2(clamp(pt.x), clamp(pt.y))
 }
