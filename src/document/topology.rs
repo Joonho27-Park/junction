@@ -8,6 +8,9 @@ use crate::util::*;
 use ordered_float::OrderedFloat;
 
 
+/// `Model`로부터 유도된 위상 구조.
+///
+/// 선로 목록, 노드 위치/유형, 선로상 오브젝트, 선로를 따라 보간된 좌표열을 포함한다.
 #[derive(Clone)]
 #[derive(Debug)]
 pub struct Topology {
@@ -18,6 +21,9 @@ pub struct Topology {
 }
 
 impl Topology {
+    /// 선로 인덱스와 구간[start,end]에 대한 보간 좌표들을 반환한다.
+    ///
+    /// 내부는 이진 탐색으로 시작점 세그먼트를 찾고, 중간 정점/끝점 보간을 수행한다.
     pub fn interval_map(&self, track_idx: usize, start :f64, end :f64) -> Vec<PtC> {
         let lines = &self.interval_lines[track_idx];
         let mut output = Vec::new();
@@ -55,6 +61,10 @@ impl Topology {
 
 
 //pub fn convert(model :&Model, def_len :f64) -> Result<(Tracks,Locations,TrackObjects,im::HashMap<Pt,NDType>), ()>{
+/// `Model`을 `Topology`로 변환한다.
+///
+/// 선로를 연결해 트랙을 구성하고, 노드 유형을 추정/설정하며,
+/// 오브젝트를 트랙상 위치로 매핑한다.
 pub fn convert(model :&Model, def_len :f64) -> Result<Topology, ()>{
 
     type TrackEnd = (usize, AB);
@@ -346,14 +356,17 @@ fn v_angle(v :Vc) -> i8 {
 }
 
 
+/// 무방향 간선 집합. 양방향 삽입/삭제를 보장한다.
 #[derive(Debug,Clone)]
 pub struct SymSet<T:Ord+Copy> {
     pub map :BTreeMap<T, BTreeSet<T>>,
 }
 
 impl<T:Ord+Copy> SymSet<T> {
+    /// 빈 집합 생성.
     pub fn new() -> Self { SymSet { map: BTreeMap::new() } }
 
+    /// 각 무방향 간선을 한 번씩 방문하며 콜백을 호출한다.
     pub fn iter(&self, mut f :impl FnMut(&T,&T)) {
         for (a,set) in self.map.iter() {
             for b in set {
@@ -364,6 +377,7 @@ impl<T:Ord+Copy> SymSet<T> {
         }
     }
 
+    /// 간선을 삽입한다(양방향 동시 삽입).
     pub fn insert(&mut self, pt :(T,T)) -> bool {
         let r1 = self.map.entry(pt.0).or_insert(BTreeSet::new()).insert(pt.1);
         let r2 = self.map.entry(pt.1).or_insert(BTreeSet::new()).insert(pt.0);
@@ -371,6 +385,7 @@ impl<T:Ord+Copy> SymSet<T> {
         r1
     }
 
+    /// 간선을 제거한다(양방향 동시 제거).
     pub fn remove(&mut self, pt :(T,T)) -> bool {
         let r1 = self.remove_oneway((pt.0,pt.1));
         let r2 = self.remove_oneway((pt.1,pt.0));
@@ -380,26 +395,31 @@ impl<T:Ord+Copy> SymSet<T> {
         r1
     }
 
+    /// 단방향으로만 제거(내부 구현용).
     fn remove_oneway(&mut self, pt :(T,T)) -> bool {
         self.map.get_mut(&pt.0).map(|s| s.remove(&pt.1)).unwrap_or(false)
     }
 
+    /// 간선 포함 여부.
     pub fn contains(&self, val :(T,T)) -> bool {
         self.map.get(&val.0).map(|v| v.contains(&val.1)) == Some(true)
     }
 
+    /// 임의의 간선을 하나 반환한다.
     pub fn get_any(&self) -> Option<(T,T)> {
         let (e1,set) = self.map.iter().nth(0)?;
         let e2 = set.iter().nth(0)?;
         Some((*e1,*e2))
     }
 
+    /// 임의의 간선을 하나 제거하고 반환한다.
     pub fn remove_any(&mut self) -> Option<(T,T)> {
         let elem = self.get_any()?;
         self.remove(elem);
         Some(elem)
     }
 
+    /// 연결 차수가 1인 경우에만 해당 정점의 유일한 상대를 제거/반환한다.
     pub fn remove_single(&mut self, val :T) -> Option<T> {
         let set = self.map.get_mut(&val)?;
         let other = *set.iter().nth(0)?;
@@ -408,6 +428,7 @@ impl<T:Ord+Copy> SymSet<T> {
         Some(other)
     }
 
+    /// 이터레이터로부터 무방향 간선 집합을 생성한다.
     pub fn from_iter(x :impl IntoIterator<Item = (T,T)>) -> Self {
         let mut s = SymSet::new();
         for i in x.into_iter() { s.insert(i); }
