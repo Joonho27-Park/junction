@@ -11,21 +11,36 @@ use log::*;
 use backend_glfw::imgui::*;
 use nalgebra_glm as glm;
 
+/// 애플리케이션의 전역 키보드 단축키를 처리하고 해당하는 동작을 수행합니다.
+///
+/// 이 함수는 ImGui의 IO 이벤트를 확인하여 특정 키 조합이 눌렸을 때
+/// 해당하는 동작(예: 저장, 열기, 실행 취소, 도구 선택 등)을 수행합니다.
+/// `unsafe` 블록을 사용하여 ImGui의 C API에 직접 접근합니다.
+///
+/// # Arguments
+///
+/// * `app` - 키보드 입력에 따라 상태가 변경될 수 있는 메인 애플리케이션(`App`)의 가변 참조자입니다.
 pub fn keys(app :&mut App) {
     unsafe {
         let io = igGetIO();
 
-
+        // --- 실행 취소/다시 실행 단축키 ---
+        /// `Ctrl+Z`를 누르면 마지막 작업을 실행 취소합니다.
         if (*io).KeyCtrl && !(*io).KeyShift && igIsKeyPressed('Z' as _, false) {
             app.document.analysis.undo();
         }
+        /// `Ctrl+Shift+Z`를 누르면 실행 취소된 작업을 다시 실행합니다.
         if (*io).KeyCtrl && (*io).KeyShift && igIsKeyPressed('Z' as _, false) {
             app.document.analysis.redo();
         }
+        /// `Ctrl+Y`를 누르면 실행 취소된 작업을 다시 실행합니다.
         if (*io).KeyCtrl && !(*io).KeyShift && igIsKeyPressed('Y' as _, false) {
             app.document.analysis.redo();
         }
 
+        // --- 파일 저장 단축키 ---
+        /// `Ctrl+S`를 누르면 현재 문서를 저장합니다.
+        /// 파일 이름이 없거나 `Shift` 키를 함께 누르면 '다른 이름으로 저장' 대화상자를 엽니다.
         if (*io).KeyCtrl && igIsKeyPressed('S' as _, false) {
             match (&app.document.fileinfo.filename, (*io).KeyShift) {
                 (None,_) | (_,true) => {
@@ -45,27 +60,34 @@ pub fn keys(app :&mut App) {
             }
         }
 
+        // --- 파일 열기 단축키 ---
+        /// `Ctrl+O`를 누르면 파일 열기 대화상자를 통해 새 문서를 불러옵니다.
         if (*io).KeyCtrl && !(*io).KeyShift && igIsKeyPressed('O' as _, false) {
             mainmenu::load(app);
         }
 
-        // 사이드바 토글 (F2 키)
+        // --- UI 토글 단축키 ---
+        /// `F2` 키를 누르면 사이드바의 표시 여부를 토글합니다.
         if igIsKeyPressed(290 as _, false) { // F2 key code
             app.windows.sidebar.is_open = !app.windows.sidebar.is_open;
         }
 
 
+        // --- 도구 및 액션 단축키 ---
+        // 다른 UI 항목(입력 필드 등)이 활성화되어 있지 않을 때만 동작합니다.
         if !igIsAnyItemActive() {
-            if (*io).KeyCtrl && igIsKeyPressed('A' as _, false) { // io.KeyCtrl: 컨트롤 키를 눌렀는가? 
-                //igIsKeyPressed: 특정 키를 눌렀는가? 즉 이 경우 Ctrl 키와 A키가 같이 눌렸는지 확인함
+            /// `Ctrl+A`를 누르면 모든 객체를 선택합니다.
+            if (*io).KeyCtrl && igIsKeyPressed('A' as _, false) {
                 use std::collections::HashSet;
                 use crate::document::model::Ref;
-                let all_ids: HashSet<Ref> = app.document.analysis.model().objects.keys().map(|pt| Ref::Object(*pt)).collect(); //  맵 전체에 있는 객체들
-                app.document.inf_view.selection = all_ids; // 모든 객체들을 선택함
+                let all_ids: HashSet<Ref> = app.document.analysis.model().objects.keys().map(|pt| Ref::Object(*pt)).collect();
+                app.document.inf_view.selection = all_ids;
+            /// `A` 키를 누르면 선택 도구(기본 상태)로 전환합니다.
             } else if igIsKeyPressed('A' as _, false) {
                 app.document.inf_view.action = Action::Normal(NormalState::Default);
             }
 
+            /// `Space` 키를 누르면 디스패치 시뮬레이션의 재생/일시정지를 토글합니다.
             if igIsKeyPressed(' ' as _, false) {
                 if let Some(DispatchView::Manual(m)) 
                      | Some(DispatchView::Auto(AutoDispatchView { dispatch: Some(m), .. })) 
@@ -74,14 +96,17 @@ pub fn keys(app :&mut App) {
                 }
             }
 
+            /// `D` 키를 누르면 선로 그리기 도구로 전환합니다.
             if igIsKeyPressed('D' as _, false) {
                 app.document.inf_view.action = Action::DrawingLine(None);
             }
 
+            /// `S` 키를 누르면 객체 삽입 메뉴를 엽니다.
             if igIsKeyPressed('S' as _, false) {
                 app.document.inf_view.action = Action::SelectObjectType;
             }
 
+            /// `H` 키를 누르면 장내 신호기(Home Signal) 삽입 모드로 전환합니다.
             if igIsKeyPressed('H' as _, false) {
                 app.document.inf_view.action = Action::InsertObject(Some(
                     Object {
@@ -100,6 +125,7 @@ pub fn keys(app :&mut App) {
                     }
                 ));
             }
+            /// `E` 키를 누르면 출발 신호기(Departure Signal) 삽입 모드로 전환합니다.
             if igIsKeyPressed('E' as _, false) {
                 app.document.inf_view.action = Action::InsertObject(Some(
                     Object {
@@ -118,6 +144,7 @@ pub fn keys(app :&mut App) {
                     }
                 ));
             }
+            /// `U` 키를 누르면 입환 신호기(Shunting Signal) 삽입 모드로 전환합니다.
             if igIsKeyPressed('U' as _, false) {
                 app.document.inf_view.action = Action::InsertObject(Some(
                     Object {
@@ -136,6 +163,7 @@ pub fn keys(app :&mut App) {
                     }
                 ));
             }
+            /// `I` 키를 누르면 궤도 회로 절연(Section Insulator) 객체 삽입 모드로 전환합니다.
             if igIsKeyPressed('I' as _, false) {
                 app.document.inf_view.action = Action::InsertObject(Some(
                     Object {
@@ -150,6 +178,7 @@ pub fn keys(app :&mut App) {
                     }
                 ));
             }
+            /// `W` 키를 누르면 선로전환기(Switch) 삽입 모드로 전환합니다.
             if igIsKeyPressed('W' as _, false) {
                 app.document.inf_view.action = Action::InsertObject(Some(
                     Object {
@@ -174,12 +203,14 @@ pub fn keys(app :&mut App) {
                 }
             }
             if igIsKeyPressed(ImGuiKey__ImGuiKey_Backspace as _, false) {
+                /// `Backspace` 키를 누르면 선택된 객체를 삭제합니다.
                 if !app.document.inf_view.selection.is_empty() {
                     use crate::gui::infrastructure::delete_selection;
                     delete_selection(&mut app.document.analysis, &mut app.document.inf_view);
                 }
             }
-            // Mac Delete key (Key 259)
+            /// Mac의 `Delete` 키(Keycode 259)를 누르면 선택된 객체를 삭제합니다.
+            /// (일반적인 Backspace와 동일하게 동작)
             if igIsKeyPressed(259, false) {
                 if !app.document.inf_view.selection.is_empty() {
                     use crate::gui::infrastructure::delete_selection;
